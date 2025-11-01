@@ -34,6 +34,15 @@ class YouTubeDownloaderApp:
         # Checkbox state for DVD titles
         self.selected_title_ids = set()
 
+        # Audio tab states
+        self.audio_wav_path = tk.StringVar(value=str(Path.home() / "Downloads"))
+        self.audio_wav_links = []
+        self.is_downloading_wav = False
+
+        self.audio_mp3_path = tk.StringVar(value=str(Path.home() / "Downloads"))
+        self.audio_mp3_links = []
+        self.is_downloading_mp3 = False
+
         # Queues/state
         self.progress_queue = queue.Queue()
 
@@ -62,9 +71,17 @@ class YouTubeDownloaderApp:
 
         # Tab 1: YouTube
         tab_yt = ttk.Frame(self.tabs, padding=10)
-        self.tabs.add(tab_yt, text="YouTube Downloader")
+        self.tabs.add(tab_yt, text="YouTube .mp4 Downloader")
 
-        # Tab 2: DVD zu MKV
+        # Tab 2: Audio WAV
+        tab_wav = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(tab_wav, text="YouTube .WAV Downloader")
+
+        # Tab 3: Audio MP3
+        tab_mp3 = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(tab_mp3, text="YouTube .MP3 Downloader")
+
+        # Tab 4: DVD zu MKV
         tab_dvd = ttk.Frame(self.tabs, padding=10)
         self.tabs.add(tab_dvd, text="DVD → MKV")
 
@@ -134,6 +151,12 @@ class YouTubeDownloaderApp:
         tab_yt.rowconfigure(3, weight=1)
         tab_yt.columnconfigure(0, weight=1)
 
+        # ----- Tab Audio WAV UI -----
+        self.create_audio_tab_ui(tab_wav, "wav")
+
+        # ----- Tab Audio MP3 UI -----
+        self.create_audio_tab_ui(tab_mp3, "mp3")
+
         # ----- Tab DVD UI -----
         self.makemkv_available = self.check_makemkv()
         dvd_top = ttk.Frame(tab_dvd)
@@ -178,6 +201,104 @@ class YouTubeDownloaderApp:
         ttk.Button(dvd_btns, text="In 1 MKV rippen", command=self.rip_selected_titles_merged).pack(side=tk.LEFT)
         self.dvd_status = ttk.Label(tab_dvd, text="Bereit")
         self.dvd_status.grid(row=4, column=0, sticky="w")
+
+    def create_audio_tab_ui(self, parent_tab, format_type):
+        """Erstellt die UI für Audio-Download-Tabs (WAV oder MP3)"""
+        # Zielordner
+        audio_path_var = self.audio_wav_path if format_type == "wav" else self.audio_mp3_path
+        lf_path = ttk.LabelFrame(parent_tab, text="Speicherort", padding=8)
+        lf_path.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        lf_path.columnconfigure(0, weight=1)
+        path_entry = ttk.Entry(lf_path, textvariable=audio_path_var, state="readonly")
+        path_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        ttk.Button(lf_path, text="Durchsuchen", 
+                   command=lambda: self.browse_audio_folder(format_type)).grid(row=0, column=1)
+
+        # URL-Eingabe
+        lf_url = ttk.LabelFrame(parent_tab, text="YouTube URL hinzufügen", padding=8)
+        lf_url.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        lf_url.columnconfigure(0, weight=1)
+        url_entry = ttk.Entry(lf_url)
+        url_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        url_placeholder = "https://www.youtube.com/watch?v=..."
+        url_entry.insert(0, url_placeholder)
+        url_entry.config(foreground="grey")
+        
+        # Store references
+        if format_type == "wav":
+            self.wav_url_entry = url_entry
+            self.wav_url_placeholder = url_placeholder
+        else:
+            self.mp3_url_entry = url_entry
+            self.mp3_url_placeholder = url_placeholder
+        
+        url_entry.bind("<FocusIn>", lambda e: self.on_audio_url_entry_focus_in(e, format_type))
+        url_entry.bind("<FocusOut>", lambda e: self.on_audio_url_entry_focus_out(e, format_type))
+        ttk.Button(lf_url, text="Zur Liste hinzufügen", 
+                   command=lambda: self.add_audio_url_to_list(format_type)).grid(row=0, column=1)
+
+        # URL-Liste
+        lf_list = ttk.LabelFrame(parent_tab, text="Download-Liste", padding=8)
+        lf_list.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
+        lf_list.rowconfigure(0, weight=1)
+        lf_list.columnconfigure(0, weight=1)
+        list_container = ttk.Frame(lf_list)
+        list_container.grid(row=0, column=0, sticky="nsew")
+        list_container.rowconfigure(0, weight=1)
+        list_container.columnconfigure(0, weight=1)
+        url_listbox = tk.Listbox(list_container, height=10)
+        url_listbox.grid(row=0, column=0, sticky="nsew")
+        sb = ttk.Scrollbar(list_container, orient="vertical", command=url_listbox.yview)
+        sb.grid(row=0, column=1, sticky="ns")
+        url_listbox.config(yscrollcommand=sb.set)
+        
+        # Store references
+        if format_type == "wav":
+            self.wav_url_listbox = url_listbox
+        else:
+            self.mp3_url_listbox = url_listbox
+
+        btns = ttk.Frame(lf_list)
+        btns.grid(row=1, column=0, pady=(8, 0))
+        ttk.Button(btns, text="Ausgewählte entfernen", 
+                   command=lambda: self.remove_selected_audio_url(format_type)).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(btns, text="Liste leeren", 
+                   command=lambda: self.clear_audio_url_list(format_type)).pack(side=tk.LEFT)
+
+        # Progress
+        lf_prog = ttk.LabelFrame(parent_tab, text="Download-Status", padding=8)
+        lf_prog.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        lf_prog.columnconfigure(0, weight=1)
+        progress_var = tk.DoubleVar(value=0)
+        progress_bar = ttk.Progressbar(lf_prog, variable=progress_var, maximum=100)
+        progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        status_label = ttk.Label(lf_prog, text="Bereit zum Download")
+        status_label.grid(row=1, column=0, sticky="w")
+        
+        # Store references
+        if format_type == "wav":
+            self.wav_progress_var = progress_var
+            self.wav_progress_bar = progress_bar
+            self.wav_status_label = status_label
+        else:
+            self.mp3_progress_var = progress_var
+            self.mp3_progress_bar = progress_bar
+            self.mp3_status_label = status_label
+
+        # Start button
+        download_button = ttk.Button(parent_tab, text=f"Download starten ({format_type.upper()})", 
+                                      command=lambda: self.start_audio_download(format_type))
+        download_button.grid(row=4, column=0, columnspan=2)
+        
+        # Store reference
+        if format_type == "wav":
+            self.wav_download_button = download_button
+        else:
+            self.mp3_download_button = download_button
+
+        # Layout stretch
+        parent_tab.rowconfigure(2, weight=1)
+        parent_tab.columnconfigure(0, weight=1)
 
     def on_url_entry_focus_in(self, _):
         if self.url_entry.get() == self.url_placeholder:
@@ -399,6 +520,150 @@ class YouTubeDownloaderApp:
                 self.progress_queue.put(("error", f"Fehler bei Video {idx+1}: {e}"))
 
         self.progress_queue.put(("complete", 100, "Alle Downloads abgeschlossen!"))
+
+    # ---------------------- Audio Download Methods ----------------------
+    def browse_audio_folder(self, format_type):
+        audio_path_var = self.audio_wav_path if format_type == "wav" else self.audio_mp3_path
+        folder = filedialog.askdirectory(initialdir=audio_path_var.get())
+        if folder:
+            audio_path_var.set(folder)
+
+    def on_audio_url_entry_focus_in(self, event, format_type):
+        entry = self.wav_url_entry if format_type == "wav" else self.mp3_url_entry
+        placeholder = self.wav_url_placeholder if format_type == "wav" else self.mp3_url_placeholder
+        if entry.get() == placeholder:
+            entry.delete(0, tk.END)
+            entry.config(foreground="black")
+
+    def on_audio_url_entry_focus_out(self, event, format_type):
+        entry = self.wav_url_entry if format_type == "wav" else self.mp3_url_entry
+        placeholder = self.wav_url_placeholder if format_type == "wav" else self.mp3_url_placeholder
+        if not entry.get().strip():
+            entry.insert(0, placeholder)
+            entry.config(foreground="grey")
+
+    def add_audio_url_to_list(self, format_type):
+        entry = self.wav_url_entry if format_type == "wav" else self.mp3_url_entry
+        listbox = self.wav_url_listbox if format_type == "wav" else self.mp3_url_listbox
+        url_links = self.audio_wav_links if format_type == "wav" else self.audio_mp3_links
+        placeholder = self.wav_url_placeholder if format_type == "wav" else self.mp3_url_placeholder
+
+        url = entry.get().strip()
+        if not url or url == placeholder:
+            messagebox.showwarning("Warnung", "Bitte geben Sie eine URL ein.")
+            return
+        if not (url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/") or url.startswith("https://m.youtube.com/")):
+            messagebox.showwarning("Warnung", "Bitte geben Sie eine gültige YouTube-URL ein.")
+            return
+        if url in url_links:
+            messagebox.showinfo("Info", "Diese URL ist bereits in der Liste.")
+            return
+        
+        url_links.append(url)
+        listbox.insert(tk.END, url)
+        entry.delete(0, tk.END)
+        self.on_audio_url_entry_focus_out(None, format_type)
+
+    def remove_selected_audio_url(self, format_type):
+        listbox = self.wav_url_listbox if format_type == "wav" else self.mp3_url_listbox
+        url_links = self.audio_wav_links if format_type == "wav" else self.audio_mp3_links
+        
+        sel = listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Bitte wählen Sie eine URL aus der Liste aus.")
+            return
+        idx = sel[0]
+        listbox.delete(idx)
+        del url_links[idx]
+
+    def clear_audio_url_list(self, format_type):
+        listbox = self.wav_url_listbox if format_type == "wav" else self.mp3_url_listbox
+        url_links = self.audio_wav_links if format_type == "wav" else self.audio_mp3_links
+        
+        if not url_links:
+            return
+        if messagebox.askyesno("Liste leeren", "Möchten Sie alle URLs aus der Liste entfernen?"):
+            url_links.clear()
+            listbox.delete(0, tk.END)
+
+    def start_audio_download(self, format_type):
+        is_downloading = self.is_downloading_wav if format_type == "wav" else self.is_downloading_mp3
+        url_links = self.audio_wav_links if format_type == "wav" else self.audio_mp3_links
+        audio_path_var = self.audio_wav_path if format_type == "wav" else self.audio_mp3_path
+        download_button = self.wav_download_button if format_type == "wav" else self.mp3_download_button
+        progress_var = self.wav_progress_var if format_type == "wav" else self.mp3_progress_var
+
+        if is_downloading:
+            messagebox.showinfo("Info", "Download läuft bereits.")
+            return
+        if not url_links:
+            messagebox.showwarning("Warnung", "Bitte fügen Sie mindestens eine URL hinzu.")
+            return
+        if not os.path.isdir(audio_path_var.get()):
+            messagebox.showerror("Fehler", "Der gewählte Speicherort existiert nicht.")
+            return
+
+        if format_type == "wav":
+            self.is_downloading_wav = True
+        else:
+            self.is_downloading_mp3 = True
+        
+        download_button.config(text="Download läuft...", state="disabled")
+        progress_var.set(0)
+        threading.Thread(target=self.download_audio, args=(format_type,), daemon=True).start()
+
+    def download_audio(self, format_type):
+        url_links = self.audio_wav_links if format_type == "wav" else self.audio_mp3_links
+        audio_path_var = self.audio_wav_path if format_type == "wav" else self.audio_mp3_path
+        
+        total = len(url_links)
+        for idx, url in enumerate(url_links):
+            try:
+                progress = (idx / total) * 100 if total else 0
+                self.progress_queue.put((f"audio_{format_type}_progress", progress, f"Starte Download {idx+1} von {total}..."))
+
+                out = os.path.join(audio_path_var.get(), "%(title)s.%(ext)s")
+                
+                if format_type == "wav":
+                    # Download beste Audiospur und konvertiere zu WAV
+                    cmd = [
+                        "yt-dlp",
+                        "-f", "bestaudio/best",
+                        "-x",  # Extract audio
+                        "--audio-format", "wav",
+                        "--audio-quality", "0",  # beste Qualität
+                        "-o", out,
+                        "--no-playlist",
+                        "--no-cache-dir",
+                        url
+                    ]
+                else:  # mp3
+                    # Download beste Audiospur und konvertiere zu MP3
+                    cmd = [
+                        "yt-dlp",
+                        "-f", "bestaudio/best",
+                        "-x",  # Extract audio
+                        "--audio-format", "mp3",
+                        "--audio-quality", "0",  # beste Qualität
+                        "-o", out,
+                        "--no-playlist",
+                        "--no-cache-dir",
+                        url
+                    ]
+
+                self.progress_queue.put((f"audio_{format_type}_progress", progress, f"Lade Audio {idx+1} von {total}..."))
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+                if result.returncode != 0:
+                    err = result.stderr or result.stdout or "Unbekannter Fehler"
+                    self.progress_queue.put((f"audio_{format_type}_error", f"Fehler bei Audio {idx+1}: {err[:800]}"))
+                else:
+                    self.progress_queue.put((f"audio_{format_type}_progress", progress, f"Audio {idx+1} von {total} fertig"))
+            except subprocess.TimeoutExpired:
+                self.progress_queue.put((f"audio_{format_type}_error", f"Timeout bei Audio {idx+1}"))
+            except Exception as e:
+                self.progress_queue.put((f"audio_{format_type}_error", f"Fehler bei Audio {idx+1}: {e}"))
+
+        self.progress_queue.put((f"audio_{format_type}_complete", 100, f"Alle {format_type.upper()}-Downloads abgeschlossen!"))
 
     # ---------------------- DVD Tools ----------------------
     def browse_dvd_output(self):
@@ -797,6 +1062,36 @@ class YouTubeDownloaderApp:
                 elif msg_type == "dvd_rip_complete":
                     count = data[0]
                     self.dvd_status.config(text=f"Rippen abgeschlossen ({count} Titel)")
+                elif msg_type == "audio_wav_progress":
+                    prog, text = data
+                    self.wav_progress_var.set(prog)
+                    self.wav_status_label.config(text=text)
+                elif msg_type == "audio_wav_complete":
+                    prog, text = data
+                    self.wav_progress_var.set(prog)
+                    self.wav_status_label.config(text=text)
+                    self.wav_download_button.config(text="Download starten (WAV)", state="normal")
+                    self.is_downloading_wav = False
+                    messagebox.showinfo("Erfolg", "Alle WAV-Downloads wurden abgeschlossen.")
+                elif msg_type == "audio_wav_error":
+                    err = data[0]
+                    self.wav_status_label.config(text="Fehler beim Download")
+                    messagebox.showerror("Download Fehler", err)
+                elif msg_type == "audio_mp3_progress":
+                    prog, text = data
+                    self.mp3_progress_var.set(prog)
+                    self.mp3_status_label.config(text=text)
+                elif msg_type == "audio_mp3_complete":
+                    prog, text = data
+                    self.mp3_progress_var.set(prog)
+                    self.mp3_status_label.config(text=text)
+                    self.mp3_download_button.config(text="Download starten (MP3)", state="normal")
+                    self.is_downloading_mp3 = False
+                    messagebox.showinfo("Erfolg", "Alle MP3-Downloads wurden abgeschlossen.")
+                elif msg_type == "audio_mp3_error":
+                    err = data[0]
+                    self.mp3_status_label.config(text="Fehler beim Download")
+                    messagebox.showerror("Download Fehler", err)
         except queue.Empty:
             pass
         self.root.after(100, self.check_progress_queue)

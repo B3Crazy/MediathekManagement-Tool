@@ -453,7 +453,7 @@ class YouTubeDownloaderApp:
 
     def download_videos(self):
         total = len(self.url_links)
-        max_retries = 10
+        max_retries = 20
         
         for idx, url in enumerate(self.url_links):
             progress = (idx / total) * 100 if total else 0
@@ -472,7 +472,6 @@ class YouTubeDownloaderApp:
                         "-f", fmt,
                         "-o", out,
                         "--no-playlist",
-                        "--no-cache-dir",
                         "--newline",
                     ]
                     if self.ffmpeg_available:
@@ -484,11 +483,14 @@ class YouTubeDownloaderApp:
 
                     self.progress_queue.put(("progress", progress, f"Lade Video {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
                     
-                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
                     
                     # Read output line by line to track progress
+                    error_output = []
                     for line in process.stdout:
                         line = line.strip()
+                        if line:
+                            error_output.append(line)
                         if "[download]" in line and "%" in line:
                             # Parse progress from yt-dlp output
                             try:
@@ -510,12 +512,14 @@ class YouTubeDownloaderApp:
                         self.progress_queue.put(("progress", progress, f"Video {idx+1} von {total} fertig"))
                         break
                     else:
-                        stderr_output = process.stderr.read() if process.stderr else ""
                         if attempt < max_retries:
-                            self.progress_queue.put(("current_progress", 0, f"Versuch {attempt} fehlgeschlagen, versuche erneut..."))
+                            last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
+                            self.progress_queue.put(("current_progress", 0, f"Versuch {attempt} fehlgeschlagen: {last_errors[:200]}"))
+                            import time
+                            time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
-                            err = stderr_output or "Unbekannter Fehler"
-                            self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {err[:800]}"))
+                            err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
+                            self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen:\n{err[:800]}"))
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:

@@ -135,6 +135,12 @@ class YouTubeDownloaderApp:
         self.progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         self.status_label = ttk.Label(lf_prog, text="Bereit zum Download")
         self.status_label.grid(row=1, column=0, sticky="w")
+        # Current file progress
+        self.current_progress_var = tk.DoubleVar(value=0)
+        self.current_progress_bar = ttk.Progressbar(lf_prog, variable=self.current_progress_var, maximum=100)
+        self.current_progress_bar.grid(row=2, column=0, sticky="ew", pady=(6, 6))
+        self.current_status_label = ttk.Label(lf_prog, text="")
+        self.current_status_label.grid(row=3, column=0, sticky="w")
 
         # Start
         self.download_button = ttk.Button(tab_yt, text="Download starten", command=self.start_download)
@@ -201,6 +207,12 @@ class YouTubeDownloaderApp:
         self.audio_progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         self.audio_status_label = ttk.Label(lf_audio_prog, text="Bereit zum Download")
         self.audio_status_label.grid(row=1, column=0, sticky="w")
+        # Current file progress
+        self.audio_current_progress_var = tk.DoubleVar(value=0)
+        self.audio_current_progress_bar = ttk.Progressbar(lf_audio_prog, variable=self.audio_current_progress_var, maximum=100)
+        self.audio_current_progress_bar.grid(row=2, column=0, sticky="ew", pady=(6, 6))
+        self.audio_current_status_label = ttk.Label(lf_audio_prog, text="")
+        self.audio_current_status_label.grid(row=3, column=0, sticky="w")
 
         # Start
         self.audio_download_button = ttk.Button(tab_audio, text="Download starten", command=self.start_audio_download)
@@ -441,38 +453,80 @@ class YouTubeDownloaderApp:
 
     def download_videos(self):
         total = len(self.url_links)
+        max_retries = 10
+        
         for idx, url in enumerate(self.url_links):
-            try:
-                progress = (idx / total) * 100 if total else 0
-                self.progress_queue.put(("progress", progress, f"Starte Download {idx+1} von {total}..."))
+            progress = (idx / total) * 100 if total else 0
+            self.progress_queue.put(("progress", progress, f"Starte Download {idx+1} von {total}..."))
+            self.progress_queue.put(("current_progress", 0, ""))
+            
+            success = False
+            for attempt in range(1, max_retries + 1):
+                try:
+                    self.progress_queue.put(("current_progress", 0, f"Versuch {attempt}/{max_retries} für Video {idx+1}"))
 
-                fmt = self.select_format_string()
-                out = os.path.join(self.download_path.get(), "%(title)s.%(ext)s")
-                cmd = [
-                    "yt-dlp",
-                    "-f", fmt,
-                    "-o", out,
-                    "--no-playlist",
-                    "--no-cache-dir",
-                ]
-                if self.ffmpeg_available:
-                    # Merge/Remux ins gewünschte Containerformat
-                    cmd += ["--merge-output-format", self.download_format.get(), "--format-sort", "res,fps,br"]
-                # Untertitel bewusst NICHT schreiben
+                    fmt = self.select_format_string()
+                    out = os.path.join(self.download_path.get(), "%(title)s.%(ext)s")
+                    cmd = [
+                        "yt-dlp",
+                        "-f", fmt,
+                        "-o", out,
+                        "--no-playlist",
+                        "--no-cache-dir",
+                        "--newline",
+                    ]
+                    if self.ffmpeg_available:
+                        # Merge/Remux ins gewünschte Containerformat
+                        cmd += ["--merge-output-format", self.download_format.get(), "--format-sort", "res,fps,br"]
+                    # Untertitel bewusst NICHT schreiben
 
-                cmd.append(url)
+                    cmd.append(url)
 
-                self.progress_queue.put(("progress", progress, f"Lade Video {idx+1} von {total}..."))
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
-                if result.returncode != 0:
-                    err = result.stderr or result.stdout or "Unbekannter Fehler"
-                    self.progress_queue.put(("error", f"Fehler bei Video {idx+1}: {err[:800]}"))
-                else:
-                    self.progress_queue.put(("progress", progress, f"Video {idx+1} von {total} fertig"))
-            except subprocess.TimeoutExpired:
-                self.progress_queue.put(("error", f"Timeout bei Video {idx+1}"))
-            except Exception as e:
-                self.progress_queue.put(("error", f"Fehler bei Video {idx+1}: {e}"))
+                    self.progress_queue.put(("progress", progress, f"Lade Video {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
+                    
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+                    
+                    # Read output line by line to track progress
+                    for line in process.stdout:
+                        line = line.strip()
+                        if "[download]" in line and "%" in line:
+                            # Parse progress from yt-dlp output
+                            try:
+                                parts = line.split()
+                                for part in parts:
+                                    if "%" in part:
+                                        percent_str = part.replace("%", "")
+                                        percent = float(percent_str)
+                                        self.progress_queue.put(("current_progress", percent, f"Versuch {attempt}/{max_retries}: {percent:.1f}%"))
+                                        break
+                            except:
+                                pass
+                    
+                    process.wait(timeout=1800)
+                    
+                    if process.returncode == 0:
+                        success = True
+                        self.progress_queue.put(("current_progress", 100, f"Video {idx+1} erfolgreich heruntergeladen"))
+                        self.progress_queue.put(("progress", progress, f"Video {idx+1} von {total} fertig"))
+                        break
+                    else:
+                        stderr_output = process.stderr.read() if process.stderr else ""
+                        if attempt < max_retries:
+                            self.progress_queue.put(("current_progress", 0, f"Versuch {attempt} fehlgeschlagen, versuche erneut..."))
+                        else:
+                            err = stderr_output or "Unbekannter Fehler"
+                            self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {err[:800]}"))
+                            
+                except subprocess.TimeoutExpired:
+                    if attempt < max_retries:
+                        self.progress_queue.put(("current_progress", 0, f"Timeout bei Versuch {attempt}, versuche erneut..."))
+                    else:
+                        self.progress_queue.put(("error", f"Timeout bei Video {idx+1} nach {max_retries} Versuchen"))
+                except Exception as e:
+                    if attempt < max_retries:
+                        self.progress_queue.put(("current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
+                    else:
+                        self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}"))
 
         self.progress_queue.put(("complete", 100, "Alle Downloads abgeschlossen!"))
 
@@ -544,38 +598,79 @@ class YouTubeDownloaderApp:
     def download_audio(self):
         format_type = self.audio_format.get()
         total = len(self.audio_links)
+        max_retries = 10
         
         for idx, url in enumerate(self.audio_links):
-            try:
-                progress = (idx / total) * 100 if total else 0
-                self.progress_queue.put(("audio_progress", progress, f"Starte Download {idx+1} von {total}..."))
+            progress = (idx / total) * 100 if total else 0
+            self.progress_queue.put(("audio_progress", progress, f"Starte Download {idx+1} von {total}..."))
+            self.progress_queue.put(("audio_current_progress", 0, ""))
+            
+            success = False
+            for attempt in range(1, max_retries + 1):
+                try:
+                    self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt}/{max_retries} für Audio {idx+1}"))
 
-                out = os.path.join(self.audio_path.get(), "%(title)s.%(ext)s")
-                
-                # Download beste Audiospur und konvertiere ins gewählte Format
-                cmd = [
-                    "yt-dlp",
-                    "-f", "bestaudio/best",
-                    "-x",  # Extract audio
-                    "--audio-format", format_type,
-                    "--audio-quality", "0",  # beste Qualität
-                    "-o", out,
-                    "--no-playlist",
-                    "--no-cache-dir",
-                    url
-                ]
+                    out = os.path.join(self.audio_path.get(), "%(title)s.%(ext)s")
+                    
+                    # Download beste Audiospur und konvertiere ins gewählte Format
+                    cmd = [
+                        "yt-dlp",
+                        "-f", "bestaudio/best",
+                        "-x",  # Extract audio
+                        "--audio-format", format_type,
+                        "--audio-quality", "0",  # beste Qualität
+                        "-o", out,
+                        "--no-playlist",
+                        "--no-cache-dir",
+                        "--newline",
+                        url
+                    ]
 
-                self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total}..."))
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
-                if result.returncode != 0:
-                    err = result.stderr or result.stdout or "Unbekannter Fehler"
-                    self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1}: {err[:800]}"))
-                else:
-                    self.progress_queue.put(("audio_progress", progress, f"Audio {idx+1} von {total} fertig"))
-            except subprocess.TimeoutExpired:
-                self.progress_queue.put(("audio_error", f"Timeout bei Audio {idx+1}"))
-            except Exception as e:
-                self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1}: {e}"))
+                    self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
+                    
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+                    
+                    # Read output line by line to track progress
+                    for line in process.stdout:
+                        line = line.strip()
+                        if "[download]" in line and "%" in line:
+                            # Parse progress from yt-dlp output
+                            try:
+                                parts = line.split()
+                                for part in parts:
+                                    if "%" in part:
+                                        percent_str = part.replace("%", "")
+                                        percent = float(percent_str)
+                                        self.progress_queue.put(("audio_current_progress", percent, f"Versuch {attempt}/{max_retries}: {percent:.1f}%"))
+                                        break
+                            except:
+                                pass
+                    
+                    process.wait(timeout=1800)
+                    
+                    if process.returncode == 0:
+                        success = True
+                        self.progress_queue.put(("audio_current_progress", 100, f"Audio {idx+1} erfolgreich heruntergeladen"))
+                        self.progress_queue.put(("audio_progress", progress, f"Audio {idx+1} von {total} fertig"))
+                        break
+                    else:
+                        stderr_output = process.stderr.read() if process.stderr else ""
+                        if attempt < max_retries:
+                            self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen, versuche erneut..."))
+                        else:
+                            err = stderr_output or "Unbekannter Fehler"
+                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {err[:800]}"))
+                            
+                except subprocess.TimeoutExpired:
+                    if attempt < max_retries:
+                        self.progress_queue.put(("audio_current_progress", 0, f"Timeout bei Versuch {attempt}, versuche erneut..."))
+                    else:
+                        self.progress_queue.put(("audio_error", f"Timeout bei Audio {idx+1} nach {max_retries} Versuchen"))
+                except Exception as e:
+                    if attempt < max_retries:
+                        self.progress_queue.put(("audio_current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
+                    else:
+                        self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}"))
 
         self.progress_queue.put(("audio_complete", 100, f"Alle {format_type.upper()}-Downloads abgeschlossen!"))
 
@@ -991,6 +1086,14 @@ class YouTubeDownloaderApp:
                     err = data[0]
                     self.audio_status_label.config(text="Fehler beim Download")
                     messagebox.showerror("Download Fehler", err)
+                elif msg_type == "current_progress":
+                    prog, text = data
+                    self.current_progress_var.set(prog)
+                    self.current_status_label.config(text=text)
+                elif msg_type == "audio_current_progress":
+                    prog, text = data
+                    self.audio_current_progress_var.set(prog)
+                    self.audio_current_status_label.config(text=text)
         except queue.Empty:
             pass
         self.root.after(100, self.check_progress_queue)

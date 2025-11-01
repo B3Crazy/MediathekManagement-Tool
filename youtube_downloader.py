@@ -658,11 +658,14 @@ class YouTubeDownloaderApp:
 
                     self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
                     
-                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
                     
                     # Read output line by line to track progress
+                    error_output = []
                     for line in process.stdout:
                         line = line.strip()
+                        if line:
+                            error_output.append(line)
                         if "[download]" in line and "%" in line:
                             # Parse progress from yt-dlp output
                             try:
@@ -684,12 +687,13 @@ class YouTubeDownloaderApp:
                         self.progress_queue.put(("audio_progress", progress, f"Audio {idx+1} von {total} fertig"))
                         break
                     else:
-                        stderr_output = process.stderr.read() if process.stderr else ""
                         if attempt < max_retries:
-                            self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen, versuche erneut..."))
+                            last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
+                            self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen: {last_errors[:200]}"))
+                            time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
-                            err = stderr_output or "Unbekannter Fehler"
-                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {err[:800]}"))
+                            err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
+                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen:\n{err[:800]}"))
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:

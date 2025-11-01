@@ -11,6 +11,8 @@ from tkinter import ttk, messagebox, filedialog
 import threading
 import os
 import sys
+import time
+import tempfile
 from pathlib import Path
 import queue
 import subprocess
@@ -290,6 +292,11 @@ class YouTubeDownloaderApp:
         if not (url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/") or url.startswith("https://m.youtube.com/")):
             messagebox.showwarning("Warnung", "Bitte geben Sie eine gültige YouTube-URL ein.")
             return
+        
+        # Entferne Timeskip-Parameter (&t=... oder ?t=...)
+        import re
+        url = re.sub(r'[&?]t=\d+[smh]?', '', url)
+        
         if url in self.url_links:
             messagebox.showinfo("Info", "Diese URL ist bereits in der Liste.")
             return
@@ -452,6 +459,11 @@ class YouTubeDownloaderApp:
         return "b[height>=720]/b"
 
     def download_videos(self):
+        # Cache-Ordner für yt-dlp im TEMP-Verzeichnis erstellen (für Thumbnails)
+        # Nutze direkt TEMP statt verstecktes .cache Verzeichnis (Windows-kompatibel)
+        cache_dir = os.path.join(tempfile.gettempdir(), "yt-dlp-cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        
         total = len(self.url_links)
         max_retries = 20
         
@@ -473,6 +485,9 @@ class YouTubeDownloaderApp:
                         "-o", out,
                         "--no-playlist",
                         "--newline",
+                        "--cache-dir", cache_dir,  # Cache-Verzeichnis explizit setzen
+                        "--embed-thumbnail",  # Thumbnail in Datei einbetten
+                        "--embed-metadata",   # Metadata (Titel, Artist, etc.) einbetten
                     ]
                     if self.ffmpeg_available:
                         # Merge/Remux ins gewünschte Containerformat
@@ -515,7 +530,6 @@ class YouTubeDownloaderApp:
                         if attempt < max_retries:
                             last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
                             self.progress_queue.put(("current_progress", 0, f"Versuch {attempt} fehlgeschlagen: {last_errors[:200]}"))
-                            import time
                             time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
                             err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
@@ -558,6 +572,11 @@ class YouTubeDownloaderApp:
         if not (url.startswith("https://www.youtube.com/") or url.startswith("https://youtu.be/") or url.startswith("https://m.youtube.com/")):
             messagebox.showwarning("Warnung", "Bitte geben Sie eine gültige YouTube-URL ein.")
             return
+        
+        # Entferne Timeskip-Parameter (&t=... oder ?t=...)
+        import re
+        url = re.sub(r'[&?]t=\d+[smh]?', '', url)
+        
         if url in self.audio_links:
             messagebox.showinfo("Info", "Diese URL ist bereits in der Liste.")
             return
@@ -600,6 +619,11 @@ class YouTubeDownloaderApp:
         threading.Thread(target=self.download_audio, daemon=True).start()
 
     def download_audio(self):
+        # Cache-Ordner für yt-dlp im TEMP-Verzeichnis erstellen (für Thumbnails)
+        # Nutze direkt TEMP statt verstecktes .cache Verzeichnis (Windows-kompatibel)
+        cache_dir = os.path.join(tempfile.gettempdir(), "yt-dlp-cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        
         format_type = self.audio_format.get()
         total = len(self.audio_links)
         max_retries = 10
@@ -625,8 +649,10 @@ class YouTubeDownloaderApp:
                         "--audio-quality", "0",  # beste Qualität
                         "-o", out,
                         "--no-playlist",
-                        "--no-cache-dir",
                         "--newline",
+                        "--paths", f"temp:{cache_dir}",  # Explizit TEMP-Cache-Pfad setzen
+                        "--embed-thumbnail",  # Thumbnail/Cover Art einbetten
+                        "--embed-metadata",   # ID3-Tags einbetten
                         url
                     ]
 

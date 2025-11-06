@@ -640,6 +640,10 @@ class YouTubeDownloaderApp:
 
                     out = os.path.join(self.audio_path.get(), "%(title)s.%(ext)s")
                     
+                    # Zähle vorhandene Dateien vor dem Download
+                    output_dir = self.audio_path.get()
+                    files_before = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
+                    
                     # Download beste Audiospur und konvertiere ins gewählte Format
                     cmd = [
                         "yt-dlp",
@@ -650,7 +654,7 @@ class YouTubeDownloaderApp:
                         "-o", out,
                         "--no-playlist",
                         "--newline",
-                        "--paths", f"temp:{cache_dir}",  # Explizit TEMP-Cache-Pfad setzen
+                        "--cache-dir", cache_dir,  # Cache-Verzeichnis explizit setzen
                         "--embed-thumbnail",  # Thumbnail/Cover Art einbetten
                         "--embed-metadata",   # ID3-Tags einbetten
                         url
@@ -662,26 +666,54 @@ class YouTubeDownloaderApp:
                     
                     # Read output line by line to track progress
                     error_output = []
+                    last_status = ""
                     for line in process.stdout:
                         line = line.strip()
                         if line:
                             error_output.append(line)
-                        if "[download]" in line and "%" in line:
-                            # Parse progress from yt-dlp output
-                            try:
-                                parts = line.split()
-                                for part in parts:
-                                    if "%" in part:
-                                        percent_str = part.replace("%", "")
-                                        percent = float(percent_str)
-                                        self.progress_queue.put(("audio_current_progress", percent, f"Versuch {attempt}/{max_retries}: {percent:.1f}%"))
-                                        break
-                            except:
-                                pass
+                        
+                        # Zeige verschiedene Phasen des Downloads an
+                        if "[download]" in line:
+                            if "%" in line:
+                                # Parse progress from yt-dlp output
+                                try:
+                                    parts = line.split()
+                                    for part in parts:
+                                        if "%" in part:
+                                            percent_str = part.replace("%", "")
+                                            percent = float(percent_str)
+                                            self.progress_queue.put(("audio_current_progress", percent, f"Download: {percent:.1f}%"))
+                                            break
+                                except:
+                                    pass
+                            elif "Destination:" in line:
+                                last_status = "Download gestartet..."
+                                self.progress_queue.put(("audio_current_progress", 0, last_status))
+                            elif "has already been downloaded" in line:
+                                last_status = "Bereits heruntergeladen"
+                                self.progress_queue.put(("audio_current_progress", 100, last_status))
+                        elif "[ExtractAudio]" in line:
+                            last_status = "Extrahiere Audio..."
+                            self.progress_queue.put(("audio_current_progress", 95, last_status))
+                        elif "[EmbedThumbnail]" in line:
+                            last_status = "Bette Thumbnail ein..."
+                            self.progress_queue.put(("audio_current_progress", 98, last_status))
+                        elif "[EmbedMetadata]" in line or "[Metadata]" in line:
+                            last_status = "Bette Metadaten ein..."
+                            self.progress_queue.put(("audio_current_progress", 99, last_status))
+                        elif "Deleting original file" in line:
+                            last_status = "Räume auf..."
+                            self.progress_queue.put(("audio_current_progress", 99, last_status))
                     
                     process.wait(timeout=1800)
                     
-                    if process.returncode == 0:
+                    # Prüfe ob neue Datei erstellt wurde (Alternative Erfolgsprüfung)
+                    files_after = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
+                    new_files = files_after - files_before
+                    new_audio_files = [f for f in new_files if f.lower().endswith(('.mp3', '.wav', '.m4a', '.opus', '.ogg', '.flac'))]
+                    
+                    # Erfolg wenn returncode 0 ODER wenn neue Audio-Datei erstellt wurde
+                    if process.returncode == 0 or new_audio_files:
                         success = True
                         self.progress_queue.put(("audio_current_progress", 100, f"Audio {idx+1} erfolgreich heruntergeladen"))
                         self.progress_queue.put(("audio_progress", progress, f"Audio {idx+1} von {total} fertig"))
@@ -689,11 +721,11 @@ class YouTubeDownloaderApp:
                     else:
                         if attempt < max_retries:
                             last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
-                            self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen: {last_errors[:200]}"))
+                            self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen (Code: {process.returncode}): {last_errors[:200]}"))
                             time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
                             err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
-                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen:\n{err[:800]}"))
+                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen (Code: {process.returncode}):\n{err[:800]}"))
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:

@@ -6,16 +6,17 @@ Eine einfache GUI-Anwendung mit zwei Oberflächen (Tabs):
 
 ## Features
 
-- **Formatwahl**: MP4 oder MKV
+- **Formatwahl**: MP4, MKV, MP3 WAV
 - **Speicherort-Auswahl**: Freie Wahl des Download-Ordners
 - **URL-Liste**: Mehrere YouTube-Links sammeln und auf einmal downloaden
-- **Progressbar**: Anzeige des Download-Fortschritts
+- **Progressbar**: Anzeige des Download-Fortschritts und des gesamten Fortschritts
 - **Höchste Qualität**: Automatische Auswahl der besten verfügbaren Qualität (bis zu 8K/4K)
 - **Benutzerfreundlich**: Übersichtliche und funktionelle Oberfläche
-- **Zweite Oberfläche: DVD → MKV**
+- **Dritte Oberfläche: DVD → MKV**
    - DVD-Laufwerk erkennen (Windows)
    - Titel/Sektionen inkl. Titelname, Länge und Größe anzeigen
    - Auswahl mehrerer Titel und Rippen zu MKV (mit MakeMKV CLI)
+   - (Dieser Tab funktioniert noch nicht)
 
 ## Installation
 
@@ -41,7 +42,7 @@ python youtube_downloader.py
 
 ## Verwendung
 
-1. **Format wählen**: Wählen Sie zwischen MP4 und MKV
+1. **Format wählen**: Wählen Sie zwischen MP4, MKV, MP3 oder WAV
 2. **Speicherort festlegen**: Klicken Sie auf "Durchsuchen" um den Download-Ordner zu wählen
 3. **URLs hinzufügen**: 
    - YouTube-URL in das Textfeld eingeben

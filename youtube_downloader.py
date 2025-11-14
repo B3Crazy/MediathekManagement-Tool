@@ -655,13 +655,18 @@ class YouTubeDownloaderApp:
                         "--no-playlist",
                         "--newline",
                         "--cache-dir", cache_dir,  # Cache-Verzeichnis explizit setzen
+                        "--add-metadata",  # Fügt alle verfügbaren Metadaten hinzu
                         url
                     ]
 
                     # Für WAV: Thumbnails/Metadata können nicht sinnvoll eingebettet werden.
                     # Daher nur bei anderen Formaten (z.B. mp3) Thumbnail/Metadata einbetten.
                     if format_type.lower() != "wav":
-                        cmd += ["--embed-thumbnail", "--embed-metadata"]
+                        cmd += [
+                            "--embed-thumbnail",
+                            "--parse-metadata", "%(uploader,channel,artist|)s:%(meta_artist)s",  # Channel/Uploader als Artist
+                            "--parse-metadata", "%(album,playlist,title)s:%(meta_album)s",  # Album-Info
+                        ]
 
                     self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
                     

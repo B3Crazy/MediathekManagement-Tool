@@ -655,23 +655,35 @@ class YouTubeDownloaderApp:
                         "--no-playlist",
                         "--newline",
                         "--cache-dir", cache_dir,  # Cache-Verzeichnis explizit setzen
-                        "--embed-thumbnail",  # Thumbnail/Cover Art einbetten
-                        "--embed-metadata",   # ID3-Tags einbetten
                         url
                     ]
+
+                    # Für WAV: Thumbnails/Metadata können nicht sinnvoll eingebettet werden.
+                    # Daher nur bei anderen Formaten (z.B. mp3) Thumbnail/Metadata einbetten.
+                    if format_type.lower() != "wav":
+                        cmd += ["--embed-thumbnail", "--embed-metadata"]
 
                     self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total} (Versuch {attempt}/{max_retries})"))
                     
                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
-                    
+
                     # Read output line by line to track progress
+                    import re
                     error_output = []
                     last_status = ""
+                    last_destination = None
                     for line in process.stdout:
                         line = line.strip()
                         if line:
                             error_output.append(line)
-                        
+
+                        # Capture destination (yt-dlp prints 'Destination: <path>')
+                        if 'Destination:' in line:
+                            # try to extract the path after 'Destination:'
+                            m = re.search(r'Destination:\s*(.+)$', line)
+                            if m:
+                                last_destination = m.group(1).strip().strip('"')
+
                         # Zeige verschiedene Phasen des Downloads an
                         if "[download]" in line:
                             if "%" in line:
@@ -686,9 +698,6 @@ class YouTubeDownloaderApp:
                                             break
                                 except:
                                     pass
-                            elif "Destination:" in line:
-                                last_status = "Download gestartet..."
-                                self.progress_queue.put(("audio_current_progress", 0, last_status))
                             elif "has already been downloaded" in line:
                                 last_status = "Bereits heruntergeladen"
                                 self.progress_queue.put(("audio_current_progress", 100, last_status))
@@ -704,19 +713,55 @@ class YouTubeDownloaderApp:
                         elif "Deleting original file" in line:
                             last_status = "Räume auf..."
                             self.progress_queue.put(("audio_current_progress", 99, last_status))
-                    
+
                     process.wait(timeout=1800)
-                    
+
                     # Prüfe ob neue Datei erstellt wurde (Alternative Erfolgsprüfung)
                     files_after = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
                     new_files = files_after - files_before
                     new_audio_files = [f for f in new_files if f.lower().endswith(('.mp3', '.wav', '.m4a', '.opus', '.ogg', '.flac'))]
-                    
-                    # Erfolg wenn returncode 0 ODER wenn neue Audio-Datei erstellt wurde
-                    if process.returncode == 0 or new_audio_files:
+
+                    # Wenn Destination erkannt wurde, prüfe das Dateisystem darauf
+                    dest_ok = False
+                    if last_destination:
+                        dest = last_destination
+                        # expand and normalize
+                        try:
+                            dest = os.path.expanduser(dest)
+                        except Exception:
+                            pass
+                        if not os.path.isabs(dest):
+                            dest = os.path.join(output_dir, dest)
+                        # If file exists directly
+                        if os.path.exists(dest) and os.path.splitext(dest)[1].lower() in ('.mp3', '.wav', '.m4a', '.opus', '.ogg', '.flac'):
+                            dest_ok = True
+                        else:
+                            # Try replacing extension with common audio extensions
+                            base = os.path.splitext(dest)[0]
+                            for ext in ('.mp3', '.wav', '.m4a', '.opus', '.ogg', '.flac'):
+                                if os.path.exists(base + ext):
+                                    dest_ok = True
+                                    break
+
+                    # Erfolg wenn returncode 0 ODER wenn neue Audio-Datei erstellt wurde ODER Destination zeigt auf Audio
+                    if process.returncode == 0 or new_audio_files or dest_ok:
                         success = True
                         self.progress_queue.put(("audio_current_progress", 100, f"Audio {idx+1} erfolgreich heruntergeladen"))
                         self.progress_queue.put(("audio_progress", progress, f"Audio {idx+1} von {total} fertig"))
+                        # Entferne bei WAV evtl. übrig gebliebene Thumbnail-Dateien (png, webp, jpg)
+                        try:
+                            if format_type.lower() == "wav":
+                                thumb_exts = ('.png', '.jpg', '.jpeg', '.webp')
+                                for f in new_files:
+                                    if f.lower().endswith(thumb_exts):
+                                        p = os.path.join(output_dir, f)
+                                        try:
+                                            os.remove(p)
+                                        except Exception:
+                                            pass
+                        except Exception:
+                            pass
+
                         break
                     else:
                         if attempt < max_retries:

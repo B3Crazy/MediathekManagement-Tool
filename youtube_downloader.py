@@ -683,8 +683,10 @@ class YouTubeDownloaderApp:
                     if format_type.lower() != "wav":
                         cmd += [
                             "--embed-thumbnail",
-                            "--parse-metadata", "%(uploader,channel,artist|)s:%(meta_artist)s",  # Channel/Uploader als Artist
-                            "--parse-metadata", "%(album,playlist,title)s:%(meta_album)s",  # Album-Info
+                            "--parse-metadata", "%(channel,uploader)s:%(meta_artist)s",  # Channel-Name (nicht Handle) als Artist
+                            "--parse-metadata", "%(title)s:%(meta_title)s",  # Titel
+                            "--parse-metadata", "%(upload_date>%Y)s:%(meta_date)s",  # Jahr
+                            "--replace-in-metadata", "artist", r"^@", ""  # Entferne führendes @ falls vorhanden
                         ]
 
                     self.progress_queue.put(("audio_progress", progress, f"Lade Audio {idx+1} von {total} (Versuch {attempt}/{max_retries})"))

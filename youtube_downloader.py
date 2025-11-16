@@ -465,7 +465,7 @@ class YouTubeDownloaderApp:
         os.makedirs(cache_dir, exist_ok=True)
         
         total = len(self.url_links)
-        max_retries = 20
+        max_retries = 10
 
         # Lösche alte Logdatei
         log_path = os.path.join(self.audio_path.get(), "video_error.log")
@@ -531,35 +531,40 @@ class YouTubeDownloaderApp:
                         success = True
                         self.progress_queue.put(("current_progress", 100, f"Video {idx+1} erfolgreich heruntergeladen"))
                         self.progress_queue.put(("progress", progress, f"Video {idx+1} von {total} fertig"))
-                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Video {idx+1} erfolgreich heruntergeladen\n")
+                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[INFO]  Video {url} erfolgreich heruntergeladen\n")
                         break
                     else:
                         if attempt < max_retries:
                             last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
                             self.progress_queue.put(("current_progress", 0, f"Versuch {attempt} fehlgeschlagen: {last_errors[:200]}"))
-                            open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Versuch {attempt} fehlgeschlagen für Video {idx+1}:\n{last_errors}\n\n")
+                            # Schreibe nur die letzten 5 Zeilen ins Log, filtere yt-dlp ERROR/WARNING Präfixe
+                            filtered_errors = [line.replace("ERROR: ", "").replace("WARNING: ", "") for line in error_output[-5:]]
+                            open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[WARN]  Versuch {attempt} für Video {idx+1} fehlgeschlagen:\n        " + "\n        ".join(filtered_errors) + "\n")
                             time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
-                            err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
-                            self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen:\n{err[:800]}"))
-                            open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Fehler bei Video {idx+1} nach {max_retries} Versuchen:\n{err}\n\n")
+                            err = "\n        ".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
+                            # Filtere yt-dlp ERROR/WARNING Präfixe
+                            filtered_err = err.replace("ERROR: ", "").replace("WARNING: ", "")
+                            self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen:\n        {filtered_err[:800]}"))
+                            open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[ERROR] Video {idx+1} nach {max_retries} Versuchen fehlgeschlagen:\n        {filtered_err}\n")
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:
                         self.progress_queue.put(("current_progress", 0, f"Timeout bei Versuch {attempt}, versuche erneut..."))
-                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Timeout bei Versuch {attempt} für Video {idx+1}\n")
+                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[WARN]  Timeout bei Versuch {attempt} für Video {idx+1}\n")
                     else:
                         self.progress_queue.put(("error", f"Timeout bei Video {idx+1} nach {max_retries} Versuchen"))
-                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Timeout bei Video {idx+1} nach {max_retries} Versuchen\n")
+                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[ERROR] Timeout bei Video {idx+1} nach {max_retries} Versuchen\n")
                 except Exception as e:
                     if attempt < max_retries:
                         self.progress_queue.put(("current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
-                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Fehler bei Versuch {attempt} für Video {idx+1}: {e}\n")
+                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[WARN] Fehler bei Versuch {attempt} für Video {idx+1}: {e}\n")
                     else:
                         self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}"))
-                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}\n")
+                        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[ERROR] Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}\n")
 
         self.progress_queue.put(("complete", 100, "Alle Downloads abgeschlossen!"))
+        open(os.path.join(self.audio_path.get(), "video_error.log"), "a", encoding="utf-8").write(f"[INFO]  Alle Downloads abgeschlossen\n")
 
     # ---------------------- Audio Download Methods ----------------------
     def browse_audio_folder(self):
@@ -639,7 +644,7 @@ class YouTubeDownloaderApp:
         
         format_type = self.audio_format.get()
         total = len(self.audio_links)
-        max_retries = 20
+        max_retries = 10
 
         # Lösche alte Logdatei
         log_path = os.path.join(self.audio_path.get(), "audio_error.log")
@@ -788,35 +793,40 @@ class YouTubeDownloaderApp:
                         except Exception:
                             pass
 
-                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"Audio {idx+1} erfolgreich heruntergeladen\n")
+                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[INFO]  Audio {url} erfolgreich heruntergeladen\n")
                         break
                     else:
                         if attempt < max_retries:
                             last_errors = "\n".join(error_output[-5:]) if error_output else "Keine Details"
                             self.progress_queue.put(("audio_current_progress", 0, f"Versuch {attempt} fehlgeschlagen (Code: {process.returncode}): {last_errors[:200]}"))
-                            open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write("\n".join("Try" + attempt+ ": " + error_output) + "\n\n")
+                            # Schreibe nur die letzten 5 Zeilen ins Log, filtere yt-dlp ERROR/WARNING Präfixe
+                            filtered_errors = [line.replace("ERROR: ", "").replace("WARNING: ", "") for line in error_output[-5:]]
+                            open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[WARN]  Versuch {attempt} für Audio {idx+1} fehlgeschlagen:\n        " + "\n        ".join(filtered_errors) + "\n")
                             time.sleep(2)  # Kurze Pause vor erneutem Versuch
                         else:
-                            err = "\n".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
-                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen (Code: {process.returncode}):\n{err[:800]}"))
-                            open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(err + "\n\n")
+                            err = "\n        ".join(error_output[-10:]) if error_output else "Unbekannter Fehler"
+                            # Filtere yt-dlp ERROR/WARNING Präfixe
+                            filtered_err = err.replace("ERROR: ", "").replace("WARNING: ", "")
+                            self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen (Code: {process.returncode}):\n        {filtered_err[:800]}"))
+                            open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[ERROR] Audio {idx+1} nach {max_retries} Versuchen fehlgeschlagen:\n        {filtered_err}\n")
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:
                         self.progress_queue.put(("audio_current_progress", 0, f"Timeout bei Versuch {attempt}, versuche erneut..."))
-                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"Timeout bei Versuch {attempt} für Audio {idx+1}\n")
+                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[WARN]  Timeout bei Versuch {attempt} für Audio {idx+1}\n")
                     else:
                         self.progress_queue.put(("audio_error", f"Timeout bei Audio {idx+1} nach {max_retries} Versuchen"))
-                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"Timeout bei Audio {idx+1} nach {max_retries} Versuchen\n")
+                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[ERROR] Timeout bei Audio {idx+1} nach {max_retries} Versuchen\n")
                 except Exception as e:
                     if attempt < max_retries:
                         self.progress_queue.put(("audio_current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
-                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"Fehler bei Versuch {attempt} für Audio {idx+1}: {e}\n")
+                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[WARN]  Fehler bei Versuch {attempt} für Audio {idx+1}: {e}\n")
                     else:
                         self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}"))
-                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}\n")
+                        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[ERROR] Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}\n")
 
         self.progress_queue.put(("audio_complete", 100, f"Alle {format_type.upper()}-Downloads abgeschlossen!"))
+        open(os.path.join(self.audio_path.get(), "audio_error.log"), "a", encoding="utf-8").write(f"[INFO]  Alle Downloads abgeschlossen\n")
 
     # ---------------------- DVD Tools ----------------------
     def browse_dvd_output(self):

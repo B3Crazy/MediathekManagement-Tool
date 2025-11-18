@@ -189,7 +189,7 @@ Falls MakeMKV nicht erkannt wird, können Sie den Pfad manuell auswählen.
 
 4. **Download starten**:
    - Die Anwendung lädt die beste verfügbare Audiospur herunter
-   - Bei MP3: Automatische Einbettung von:
+   - Bei mp3 Automatische Einbettung von:
      - Cover-Art (Thumbnail)
      - Titel
      - Artist (YouTube-Kanal-Name)

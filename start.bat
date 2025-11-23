@@ -2,7 +2,7 @@
 echo YouTube Downloader - Setup
 echo ========================
 
-echo Installiere Abhaengigkeiten...
+echo Installiere Abhängigkeiten...
 pip install -r requirements.txt
 
 if %ERRORLEVEL% == 0 (

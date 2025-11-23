@@ -330,6 +330,17 @@ class YouTubeDownloaderApp:
             self.logger("error", "Der gewählte Speicherort existiert nicht.")
             return
 
+        # Warnung wenn MKV ohne ffmpeg
+        if self.download_format.get() == "mkv" and not self.ffmpeg_available:
+            if not messagebox.askyesno(
+                "ffmpeg nicht verfügbar",
+                "MKV-Downloads funktionieren am besten mit ffmpeg.\n\n"
+                "Ohne ffmpeg sind nur niedrigere Auflösungen verfügbar und das Ergebnis könnte "
+                "als WebM statt MKV gespeichert werden.\n\n"
+                "Möchten Sie trotzdem fortfahren?"
+            ):
+                return
+
         self.is_downloading = True
         self.download_button.config(text="Download läuft...", state="disabled")
         self.progress_var.set(0)
@@ -390,6 +401,11 @@ class YouTubeDownloaderApp:
                     if self.ffmpeg_available:
                         # Merge/Remux ins gewünschte Containerformat
                         cmd += ["--merge-output-format", self.download_format.get(), "--format-sort", "res,fps,br"]
+                    else:
+                        # Ohne ffmpeg: Erzwinge gewünschtes Format durch Remux (falls möglich)
+                        # oder akzeptiere was verfügbar ist
+                        if self.download_format.get() == "mkv":
+                            cmd += ["--remux-video", "mkv"]
                     # Untertitel bewusst NICHT schreiben
 
                     cmd.append(url)

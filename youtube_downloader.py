@@ -32,11 +32,6 @@ class YouTubeDownloaderApp:
         self.url_links = []
         self.is_downloading = False
         self.ffmpeg_available = False
-        self.makemkv_cmd = "makemkvcon"
-        self.makemkv_available = False
-        # Checkbox state for DVD titles
-        self.selected_title_ids = set()
-
         # Audio tab states
         self.audio_format = tk.StringVar(value="mp3")
         self.audio_path = tk.StringVar(value=str(Path.home() / "Downloads"))
@@ -226,49 +221,19 @@ class YouTubeDownloaderApp:
         tab_audio.columnconfigure(0, weight=1)
 
         # ----- Tab DVD UI -----
-        self.makemkv_available = self.check_makemkv()
-        dvd_top = ttk.Frame(tab_dvd)
-        dvd_top.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        dvd_top.columnconfigure(1, weight=1)
-
-        ttk.Label(dvd_top, text="DVD-Laufwerk:").grid(row=0, column=0, sticky="w", padx=(0, 8))
-        self.dvd_drive_var = tk.StringVar(value="")
-        self.dvd_drive_combo = ttk.Combobox(dvd_top, textvariable=self.dvd_drive_var, state="readonly", values=[])
-        self.dvd_drive_combo.grid(row=0, column=1, sticky="ew")
-        ttk.Button(dvd_top, text="Laufwerke scannen", command=self.scan_dvd_drives).grid(row=0, column=2, padx=(8, 0))
-
-        self.dvd_out_path = tk.StringVar(value=str(Path.home() / "Videos"))
-        lf_out = ttk.LabelFrame(tab_dvd, text="Ausgabeordner", padding=8)
-        lf_out.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        lf_out.columnconfigure(0, weight=1)
-        ttk.Entry(lf_out, textvariable=self.dvd_out_path, state="readonly").grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        ttk.Button(lf_out, text="Durchsuchen", command=self.browse_dvd_output).grid(row=0, column=1)
-
-        lf_titles = ttk.LabelFrame(tab_dvd, text="Titel (Sektionen)", padding=8)
-        lf_titles.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
-        tab_dvd.rowconfigure(2, weight=1)
+        # Zentrierter Frame für den Button
+        tab_dvd.rowconfigure(0, weight=1)
         tab_dvd.columnconfigure(0, weight=1)
-        # Add a checkbox-like column "sel" for selection
-        columns = ("sel", "idx", "name", "length", "size")
-        self.titles_tree = ttk.Treeview(lf_titles, columns=columns, show="headings", selectmode="extended")
-        for col, txt, w, anchor in (("sel", "Auswahl", 80, "center"), ("idx", "#", 60, "w"), ("name", "Titel", 420, "w"), ("length", "Länge", 100, "w"), ("size", "Größe", 120, "w")):
-            self.titles_tree.heading(col, text=txt)
-            self.titles_tree.column(col, width=w, anchor=anchor)
-        self.titles_tree.grid(row=0, column=0, sticky="nsew")
-        lf_titles.rowconfigure(0, weight=1); lf_titles.columnconfigure(0, weight=1)
-        sb2 = ttk.Scrollbar(lf_titles, orient="vertical", command=self.titles_tree.yview)
-        sb2.grid(row=0, column=1, sticky="ns")
-        self.titles_tree.config(yscrollcommand=sb2.set)
-        # Click to toggle checkbox state in first column
-        self.titles_tree.bind("<Button-1>", self.on_titles_click)
-
-        dvd_btns = ttk.Frame(tab_dvd)
-        dvd_btns.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 10))
-        ttk.Button(dvd_btns, text="Titel laden", command=self.load_dvd_titles).pack(side=tk.LEFT, padx=(0, 8))
-        ttk.Button(dvd_btns, text="Ausgewählte rippen", command=self.rip_selected_titles).pack(side=tk.LEFT, padx=(0, 8))
-        ttk.Button(dvd_btns, text="In 1 MKV rippen", command=self.rip_selected_titles_merged).pack(side=tk.LEFT)
-        self.dvd_status = ttk.Label(tab_dvd, text="Bereit")
-        self.dvd_status.grid(row=4, column=0, sticky="w")
+        
+        vm_frame = ttk.Frame(tab_dvd)
+        vm_frame.grid(row=0, column=0)
+        
+        ttk.Button(vm_frame, text="Virtuelle Maschine erstellen und öffnen", 
+                   command=self.create_and_open_vm, 
+                   width=40).pack(pady=20)
+        
+        self.vm_status = ttk.Label(vm_frame, text="Bereit")
+        self.vm_status.pack(pady=10)
 
     def on_url_entry_focus_in(self, _):
         if self.url_entry.get() == self.url_placeholder:
@@ -324,8 +289,12 @@ class YouTubeDownloaderApp:
 
     # ---------------------- Tools ----------------------
     def logger(self, severity, message: str):
+        # Bestimme Projektverzeichnis (wo das Skript liegt)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        log_file = os.path.join(script_dir, "youtube_downloader.log")
+        
         logging.basicConfig(
-            filename=os.path.join(self.audio_path.get(), "youtube_downloader.log"),
+            filename=log_file,
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)s] %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
@@ -362,77 +331,6 @@ class YouTubeDownloaderApp:
                     self.progress_queue.put(("install_complete", False, str(e)))
             threading.Thread(target=_install, daemon=True).start()
             return False
-
-    def check_makemkv(self) -> bool:
-        # Helper to validate a given command path
-        def _validate(cmd: str) -> bool:
-            try:
-                r = subprocess.run([cmd, "--version"], capture_output=True, text=True, timeout=30)
-                if r.returncode == 0:
-                    return True
-                out = (r.stdout or "") + (r.stderr or "")
-                if "MakeMKV" in out or "makemkvcon" in out.lower():
-                    return True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
-            except Exception:
-                pass
-            # Fallback: try --help
-            try:
-                r2 = subprocess.run([cmd, "--help"], capture_output=True, text=True, timeout=30)
-                out2 = (r2.stdout or "") + (r2.stderr or "")
-                if "MakeMKV" in out2 or "makemkvcon" in out2.lower():
-                    return True
-            except Exception:
-                pass
-            return False
-
-        # Try current command
-        if self.makemkv_cmd and _validate(self.makemkv_cmd):
-            return True
-
-        # Search common Windows install paths
-        possible = [
-            r"C:\\Program Files (x86)\\MakeMKV\\makemkvcon.exe",
-            r"C:\\Program Files\\MakeMKV\\makemkvcon.exe",
-        ]
-        for p in possible:
-            if os.path.isfile(p):
-                if _validate(p):
-                    self.makemkv_cmd = p
-                    return True
-        return False
-
-    def ensure_makemkv(self) -> bool:
-        if self.check_makemkv():
-            self.makemkv_available = True
-            return True
-        # Let user pick makemkvcon.exe
-        messagebox.showwarning("MakeMKV fehlt", "Die MakeMKV-CLI (makemkvcon) wurde nicht gefunden. Bitte wählen Sie die makemkvcon.exe aus.")
-        self.logger("warning", "MakeMKV-CLI (makemkvcon) wurde nicht gefunden. Benutzer wird aufgefordert, die ausführbare Datei auszuwählen.")
-        path = filedialog.askopenfilename(
-            title="makemkvcon.exe auswählen",
-            filetypes=[("MakeMKV CLI", "makemkvcon.exe"), ("Alle Dateien", "*.*")]
-        )
-        if path and os.path.isfile(path):
-            self.makemkv_cmd = path
-            self.makemkv_available = self.check_makemkv()
-        else:
-            self.makemkv_available = False
-        if not self.makemkv_available:
-            # Offer continuing anyway if executable was chosen
-            if path and os.path.isfile(path):
-                cont = messagebox.askyesno(
-                    "MakeMKV",
-                    "MakeMKV-CLI konnte nicht eindeutig validiert werden. Trotzdem fortfahren?"
-                )
-                self.logger("warning", "MakeMKV-CLI konnte nicht eindeutig validiert werden. Benutzer wurde gefragt, ob trotzdem fortgefahren werden soll.")
-                if cont:
-                    self.makemkv_available = True
-                    return True
-            messagebox.showerror("MakeMKV", "MakeMKV-CLI konnte nicht validiert werden.")
-            self.logger("error", "MakeMKV-CLI konnte nicht validiert werden.")
-        return self.makemkv_available
 
     def check_ffmpeg(self) -> bool:
         try:
@@ -851,326 +749,376 @@ class YouTubeDownloaderApp:
         self.logger("info", "Alle Audio-Downloads abgeschlossen")
 
     # ---------------------- DVD Tools ----------------------
-    def browse_dvd_output(self):
-        folder = filedialog.askdirectory(initialdir=self.dvd_out_path.get())
-        if folder:
-            self.dvd_out_path.set(folder)
-
-    def scan_dvd_drives(self):
-        # Windows: prüfe D:..Z: auf VIDEO_TS
-        drives = []
-        for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
-            drive = f"{letter}:\\"
-            if os.path.exists(drive) and os.path.isdir(drive):
-                if os.path.isdir(os.path.join(drive, "VIDEO_TS")):
-                    drives.append(drive)
-        if not drives:
-            messagebox.showwarning("Kein DVD-Laufwerk", "Es wurde kein DVD-Laufwerk mit VIDEO_TS gefunden.")
-        self.dvd_drive_combo["values"] = drives
-        if drives:
-            self.dvd_drive_combo.current(0)
-        self.dvd_status.config(text=f"Gefundene Laufwerke: {', '.join(drives) if drives else '—'}")
-
-    def load_dvd_titles(self):
-        if not self.makemkv_available:
-            if not self.ensure_makemkv():
-                return
-        drive = self.dvd_drive_var.get()
-        if not drive:
-            # Auto-scan and select if possible
-            self.scan_dvd_drives()
-            vals = list(self.dvd_drive_combo["values"]) or []
-            if len(vals) == 1:
-                self.dvd_drive_var.set(vals[0])
-                drive = vals[0]
-            else:
-                messagebox.showwarning("Kein Laufwerk", "Bitte zuerst ein DVD-Laufwerk scannen und auswählen.")
-                return
-
-        self.dvd_status.config(text="Lese Titel von DVD...")
-
+    def create_and_open_vm(self):
+        """Erstellt und öffnet eine virtuelle Maschine"""
+        self.vm_status.config(text="Erstelle virtuelle Maschine...")
+        
         def worker():
             try:
-                # Ermittle Disc-Index und nutze disc:<idx> für die Titelinfo
-                disc_idx = self._get_disc_index_for_drive(drive)
-                titles = []
-                combined = ""
-                if disc_idx is not None:
-                    cmd = [self.makemkv_cmd, "-r", "--cache=1", "--progress=-stdout", "info", f"disc:{disc_idx}"]
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-                    out = (r.stdout or "")
-                    err = (r.stderr or "")
-                    combined = (out + "\n" + err).strip()
-                    titles = self._parse_makemkv_info(out if out else combined)
-                else:
-                    # Fallback: zeige DRV-Ausgabe
-                    r0 = subprocess.run([self.makemkv_cmd, "-r", "--cache=1", "--progress=-stdout", "info"], capture_output=True, text=True, timeout=600)
-                    combined = ((r0.stdout or "") + "\n" + (r0.stderr or "")).strip()
-                if titles:
-                    self.progress_queue.put(("dvd_titles", titles))
-                else:
-                    msg = combined[:1200] if combined else "(keine Ausgabe)"
-                    self.progress_queue.put(("error", f"MakeMKV info Fehler: {msg}"))
-            except Exception as e:
-                self.progress_queue.put(("error", f"Titel lesen fehlgeschlagen: {e}"))
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _parse_makemkv_info(self, text: str):
-        # Parsen von Zeilen wie: TINFO:0,2,0,"Name" / TINFO:0,9,0,"3600.000000" / TINFO:0,10,0,"7340032000"
-        import re
-        titles = {}
-        for line in text.splitlines():
-            if line.startswith("TINFO:"):
-                # TINFO:<idx>,<field>,0,"value"
-                m = re.match(r"TINFO:(\d+),(\d+),\d+,\"(.*)\"", line)
-                if not m:
-                    continue
-                idx, field, val = int(m.group(1)), int(m.group(2)), m.group(3)
-                t = titles.setdefault(idx, {"name": None, "length": None, "size": None})
-                if field in (2, 27) and not t["name"]:  # title name fields (varies)
-                    t["name"] = val
-                elif field == 9:  # length seconds
+                # Prüfe ob VirtualBox installiert ist
+                vbox_paths = [
+                    r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe",
+                    r"C:\Program Files (x86)\Oracle\VirtualBox\VBoxManage.exe"
+                ]
+                
+                vboxmanage = None
+                for path in vbox_paths:
+                    if os.path.isfile(path):
+                        vboxmanage = path
+                        break
+                
+                if not vboxmanage:
+                    # VBoxManage im PATH suchen
                     try:
-                        secs = float(val)
-                        h = int(secs // 3600); mmin = int((secs % 3600) // 60); s = int(secs % 60)
-                        t["length"] = f"{h:02d}:{mmin:02d}:{s:02d}"
-                    except Exception:
-                        t["length"] = val
-                elif field == 10:  # size bytes
+                        result = subprocess.run(["where", "VBoxManage"], 
+                                              capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            vboxmanage = result.stdout.strip().split('\n')[0]
+                    except:
+                        pass
+                
+                if not vboxmanage:
+                    # Frage ob VirtualBox installiert werden soll
+                    install = [False]  # Use list to modify in lambda
+                    self.root.after(0, lambda: install.__setitem__(0, messagebox.askyesno(
+                        "VirtualBox nicht gefunden",
+                        "VirtualBox ist nicht installiert.\n\nMöchten Sie VirtualBox jetzt automatisch installieren?")))
+                    
+                    # Warte bis Dialog beantwortet wurde
+                    import time
+                    timeout = 60  # 60 Sekunden Timeout
+                    elapsed = 0
+                    while install[0] is False and elapsed < timeout:
+                        time.sleep(0.1)
+                        elapsed += 0.1
+                    
+                    if not install[0]:
+                        self.root.after(0, lambda: self.vm_status.config(text="Installation abgebrochen"))
+                        self.logger("info", "VirtualBox Installation wurde abgebrochen")
+                        return
+                    
+                    # Installiere VirtualBox
+                    self.root.after(0, lambda: self.vm_status.config(text="Lade VirtualBox herunter..."))
+                    self.logger("info", "Starte VirtualBox Download und Installation")
+                    
                     try:
-                        b = int(float(val))
-                        t["size"] = f"{b/1_048_576:.1f} MiB"
-                    except Exception:
-                        t["size"] = val
-        # In Liste umwandeln, nach idx sortieren
-        result = []
-        for idx in sorted(titles.keys()):
-            t = titles[idx]
-            name = t["name"] or f"Titel {idx}"
-            length = t["length"] or "?"
-            size = t["size"] or "?"
-            result.append((idx, name, length, size))
-        return result
-
-    def _parse_disc_index_from_drv(self, text: str, drive: str):
-        """Findet in DRV:-Zeilen den Index für das angegebene Windows-Laufwerk (z. B. D:\\)."""
-        import re
-        d = drive.strip().upper()
-        if d.endswith("\\") or d.endswith("/"):
-            d = d[:-1]
-        if len(d) >= 2 and d[1] == ':':
-            d = d[:2]
-        # Beispiel: DRV:0,2,999,1,"<model>","<label>","D:"
-        for line in text.splitlines():
-            line = line.strip()
-            if not line.startswith("DRV:"):
-                continue
-            m = re.match(r"^DRV:(\d+)", line)
-            if not m:
-                continue
-            idx = int(m.group(1))
-            quoted = re.findall(r'"([^"]*)"', line)
-            if quoted:
-                last = quoted[-1].upper()
-                if last == d:
-                    return idx
-        return None
-
-    def _get_disc_index_for_drive(self, drive: str):
-        """Fragt MakeMKV nach DRV-Liste und liefert den Disc-Index für das gegebene Laufwerk."""
-        try:
-            r = subprocess.run([self.makemkv_cmd, "-r", "--cache=1", "--progress=-stdout", "info"], capture_output=True, text=True, timeout=120)
-            text = (r.stdout or "") + "\n" + (r.stderr or "")
-            idx = self._parse_disc_index_from_drv(text, drive)
-            if idx is not None:
-                return idx
-            # Fallback: mit file:<drive> erneut versuchen
-            d = drive if drive.endswith("\\") else drive + "\\"
-            r2 = subprocess.run([self.makemkv_cmd, "-r", "--cache=1", "--progress=-stdout", "info", f"file:{d}"], capture_output=True, text=True, timeout=120)
-            text2 = (r2.stdout or "") + "\n" + (r2.stderr or "")
-            return self._parse_disc_index_from_drv(text2, drive)
-        except Exception:
-            return None
-
-    def rip_selected_titles(self):
-        if not self.makemkv_available:
-            if not self.ensure_makemkv():
-                return
-        drive = self.dvd_drive_var.get()
-        if not drive:
-            messagebox.showwarning("Kein Laufwerk", "Bitte zuerst ein DVD-Laufwerk auswählen.")
-            return
-        outdir = self.dvd_out_path.get()
-        if not os.path.isdir(outdir):
-            messagebox.showerror("Fehler", "Ausgabeordner existiert nicht.")
-            return
-        idxs = self.get_selected_title_indexes()
-        if not idxs:
-            messagebox.showinfo("Info", "Bitte wählen Sie mindestens einen Titel aus (Checkbox oder Markierung).")
-            return
-
-        self.dvd_status.config(text=f"Rippe {len(idxs)} Titel...")
-
-        def worker():
-            try:
-                disc_idx = self._get_disc_index_for_drive(drive)
-                if disc_idx is None:
-                    self.progress_queue.put(("error", "Konnte Disc-Index für das Laufwerk nicht ermitteln."))
-                    return
-                for tidx in idxs:
-                    cmd = [self.makemkv_cmd, "-r", "--cache=4", "--progress=-stdout", "mkv", f"disc:{disc_idx}", str(tidx), outdir]
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
-                    if r.returncode != 0:
-                        self.progress_queue.put(("error", f"Rippen von Titel {tidx} fehlgeschlagen: {r.stderr[:800]}"))
+                        # Verwende winget (moderner Windows Package Manager)
+                        self.root.after(0, lambda: self.vm_status.config(text="Installiere VirtualBox mit winget..."))
+                        result = subprocess.run(
+                            ["winget", "install", "--id", "Oracle.VirtualBox", "--silent", "--accept-package-agreements", "--accept-source-agreements"],
+                            capture_output=True, text=True, timeout=600
+                        )
+                        
+                        if result.returncode == 0:
+                            self.root.after(0, lambda: messagebox.showinfo(
+                                "Installation erfolgreich",
+                                "VirtualBox wurde erfolgreich installiert.\n\nBitte starten Sie die Anwendung neu, um VirtualBox zu verwenden."))
+                            self.root.after(0, lambda: self.vm_status.config(text="VirtualBox installiert - Neustart erforderlich"))
+                            self.logger("info", "VirtualBox erfolgreich installiert")
+                            return
+                        else:
+                            # Winget fehlgeschlagen, versuche Chocolatey
+                            self.root.after(0, lambda: self.vm_status.config(text="Versuche Installation mit Chocolatey..."))
+                            result = subprocess.run(
+                                ["choco", "install", "virtualbox", "-y"],
+                                capture_output=True, text=True, timeout=600
+                            )
+                            
+                            if result.returncode == 0:
+                                self.root.after(0, lambda: messagebox.showinfo(
+                                    "Installation erfolgreich",
+                                    "VirtualBox wurde erfolgreich installiert.\n\nBitte starten Sie die Anwendung neu, um VirtualBox zu verwenden."))
+                                self.root.after(0, lambda: self.vm_status.config(text="VirtualBox installiert - Neustart erforderlich"))
+                                self.logger("info", "VirtualBox erfolgreich mit Chocolatey installiert")
+                                return
+                            else:
+                                # Beide Package Manager fehlgeschlagen
+                                self.root.after(0, lambda: messagebox.showerror(
+                                    "Installation fehlgeschlagen",
+                                    "Die automatische Installation ist fehlgeschlagen.\n\n"
+                                    "Bitte installieren Sie VirtualBox manuell von:\n"
+                                    "https://www.virtualbox.org/wiki/Downloads\n\n"
+                                    f"Fehler: {result.stderr[:300]}"))
+                                self.root.after(0, lambda: self.vm_status.config(text="Installation fehlgeschlagen"))
+                                self.logger("error", f"VirtualBox Installation fehlgeschlagen: {result.stderr}")
+                                return
+                                
+                    except FileNotFoundError:
+                        # Weder winget noch choco verfügbar
+                        self.root.after(0, lambda: messagebox.showerror(
+                            "Package Manager nicht gefunden",
+                            "Kein Package Manager (winget/chocolatey) gefunden.\n\n"
+                            "Bitte installieren Sie VirtualBox manuell von:\n"
+                            "https://www.virtualbox.org/wiki/Downloads"))
+                        self.root.after(0, lambda: self.vm_status.config(text="Keine Package Manager verfügbar"))
+                        self.logger("error", "Keine Package Manager (winget/choco) verfügbar")
                         return
-                self.progress_queue.put(("dvd_rip_complete", len(idxs)))
+                    except subprocess.TimeoutExpired:
+                        self.root.after(0, lambda: messagebox.showerror(
+                            "Timeout",
+                            "Die Installation hat zu lange gedauert.\n\nBitte versuchen Sie es später erneut."))
+                        self.root.after(0, lambda: self.vm_status.config(text="Installation Timeout"))
+                        self.logger("error", "VirtualBox Installation Timeout")
+                        return
+                    except Exception as e:
+                        self.root.after(0, lambda: messagebox.showerror(
+                            "Fehler",
+                            f"Fehler bei der Installation:\n{e}\n\nBitte installieren Sie VirtualBox manuell von:\n"
+                            "https://www.virtualbox.org/wiki/Downloads"))
+                        self.root.after(0, lambda: self.vm_status.config(text="Installation fehlgeschlagen"))
+                        self.logger("error", f"VirtualBox Installation Fehler: {e}")
+                        return
+                
+                # VM Name
+                vm_name = "DVD_Ripper_VM"
+                
+                # Prüfe ob VM bereits existiert
+                result = subprocess.run([vboxmanage, "list", "vms"], 
+                                      capture_output=True, text=True, timeout=10)
+                
+                if vm_name in result.stdout:
+                    # VM existiert bereits - lösche sie und erstelle neu
+                    self.root.after(0, lambda: self.vm_status.config(text="Lösche alte VM..."))
+                    self.logger("info", f"Lösche vorhandene VM {vm_name}")
+                    
+                    try:
+                        # VM ausschalten falls sie läuft
+                        subprocess.run([vboxmanage, "controlvm", vm_name, "poweroff"], 
+                                     capture_output=True, timeout=10)
+                        time.sleep(2)
+                    except:
+                        pass
+                    
+                    try:
+                        # VM löschen mit allen Dateien
+                        subprocess.run([vboxmanage, "unregistervm", vm_name, "--delete"], 
+                                     timeout=30, check=True)
+                        self.logger("info", f"VM {vm_name} gelöscht")
+                        time.sleep(1)
+                    except Exception as e:
+                        self.logger("error", f"Fehler beim Löschen der VM: {e}")
+                        self.root.after(0, lambda: messagebox.showerror(
+                            "Fehler", 
+                            f"Konnte alte VM nicht löschen:\n{e}\n\n"
+                            "Bitte löschen Sie die VM manuell in VirtualBox."))
+                        self.root.after(0, lambda: self.vm_status.config(text="Fehler beim Löschen"))
+                        return
+                    
+                    # Weiter mit Neuanlage (kein else, damit der Code unten ausgeführt wird)
+                    self.root.after(0, lambda: self.vm_status.config(text="Erstelle neue VM..."))
+                
+                # Erstelle neue VM mit TinyCore Linux (immer ausführen, wenn wir hier ankommen)
+                self.root.after(0, lambda: self.vm_status.config(text="Erstelle neue VM..."))
+                
+                # Temporäres Verzeichnis für VM-Dateien
+                temp_dir = tempfile.mkdtemp(prefix="vbox_vm_")
+                
+                try:
+                    # Verwende TinyCore Linux ISO aus dem Projektordner
+                    self.root.after(0, lambda: self.vm_status.config(text="Suche TinyCore Linux ISO..."))
+                    self.logger("info", "Verwende TinyCore Linux ISO aus Projektordner")
+                    
+                    # Bestimme Projektordner (wo das Skript liegt)
+                    script_dir = os.path.dirname(os.path.abspath(__file__))
+                    
+                    # Liste alle Dateien im Projektordner für Debugging
+                    try:
+                        files_in_dir = os.listdir(script_dir)
+                        iso_files = [f for f in files_in_dir if f.lower().endswith('.iso')]
+                        self.logger("info", f"Projektordner: {script_dir}")
+                        self.logger("info", f"ISO-Dateien gefunden: {iso_files}")
+                        self.logger("info", f"Alle Dateien: {files_in_dir}")
+                    except Exception as e:
+                        self.logger("error", f"Fehler beim Auflisten der Dateien: {e}")
+                    
+                    # Suche nach ISO-Datei (case-insensitive)
+                    iso_path = None
+                    for filename in files_in_dir:
+                        if filename.lower() == "tinycore-current.iso":
+                            iso_path = os.path.join(script_dir, filename)
+                            self.logger("info", f"ISO gefunden: {iso_path}")
+                            break
+                    
+                    # Falls nicht gefunden, zeige Fehler mit allen verfügbaren ISO-Dateien
+                    if not iso_path or not os.path.exists(iso_path):
+                        error_msg = f"TinyCore-current.iso wurde nicht gefunden.\n\n"
+                        error_msg += f"Projektordner: {script_dir}\n\n"
+                        if iso_files:
+                            error_msg += f"Gefundene ISO-Dateien:\n" + "\n".join(iso_files) + "\n\n"
+                            error_msg += "Bitte benennen Sie eine dieser Dateien in 'TinyCore-current.iso' um."
+                        else:
+                            error_msg += "Keine ISO-Dateien gefunden.\n\n"
+                            error_msg += "Bitte laden Sie die ISO herunter von:\n"
+                            error_msg += "http://tinycorelinux.net/16.x/x86/release/TinyCore-current.iso"
+                        
+                        self.root.after(0, lambda msg=error_msg: messagebox.showerror("ISO nicht gefunden", msg))
+                        self.root.after(0, lambda: self.vm_status.config(text="ISO nicht gefunden"))
+                        self.logger("error", error_msg)
+                        return
+                    
+                    # VM erstellen
+                    self.root.after(0, lambda: self.vm_status.config(text="Erstelle VM-Konfiguration..."))
+                    subprocess.run([vboxmanage, "createvm", "--name", vm_name, 
+                                  "--ostype", "Linux_64", "--register"], 
+                                 timeout=30, check=True)
+                    
+                    # Konfiguration
+                    subprocess.run([vboxmanage, "modifyvm", vm_name,
+                                  "--memory", "2048",  # 2GB reichen für TinyCore
+                                  "--cpus", "2",
+                                  "--vram", "16",
+                                  "--boot1", "dvd",
+                                  "--boot2", "none",  # Nur DVD, keine Festplatte beim ersten Boot
+                                  "--boot3", "none",
+                                  "--boot4", "none",
+                                  "--biosbootmenu", "messageandmenu",
+                                  "--bioslogofadein", "off",
+                                  "--bioslogofadeout", "off",
+                                  "--bioslogodisplaytime", "1",
+                                  "--biossystemtimeoffset", "0",
+                                  "--audio", "none"], timeout=30, check=True)
+                    
+                    # Storage Controller hinzufügen
+                    subprocess.run([vboxmanage, "storagectl", vm_name,
+                                  "--name", "IDE",
+                                  "--add", "ide"], timeout=30, check=True)
+                    
+                    # ISO als DVD mounten (Windows-Pfad normalisieren)
+                    iso_path_normalized = os.path.normpath(iso_path)
+                    self.logger("info", f"Mounte ISO: {iso_path_normalized}")
+                    subprocess.run([vboxmanage, "storageattach", vm_name,
+                                  "--storagectl", "IDE",
+                                  "--port", "0",
+                                  "--device", "0",
+                                  "--type", "dvddrive",
+                                  "--medium", iso_path_normalized], timeout=30, check=True)
+                    
+                    # Verifiziere dass ISO gemountet wurde
+                    verify = subprocess.run([vboxmanage, "showvminfo", vm_name], 
+                                          capture_output=True, text=True, timeout=10)
+                    if iso_path_normalized in verify.stdout or "TinyCore" in verify.stdout:
+                        self.logger("info", "ISO erfolgreich als DVD gemountet")
+                    else:
+                        self.logger("warning", "ISO-Mount konnte nicht verifiziert werden")
+                    
+                    # Virtuelle Festplatte erstellen (20GB) - OPTIONAL für TinyCore
+                    # TinyCore kann komplett von RAM laufen, Festplatte nur für Persistenz
+                    vdi_path = os.path.join(temp_dir, f"{vm_name}.vdi")
+                    subprocess.run([vboxmanage, "createhd",
+                                  "--filename", vdi_path,
+                                  "--size", "20480"], timeout=60, check=True)
+                    
+                    # SATA Controller für Festplatte (IDE für DVD)
+                    subprocess.run([vboxmanage, "storagectl", vm_name,
+                                  "--name", "SATA",
+                                  "--add", "sata",
+                                  "--bootable", "off"], timeout=30, check=True)
+                    
+                    # Festplatte an SATA anbinden (nicht bootfähig)
+                    subprocess.run([vboxmanage, "storageattach", vm_name,
+                                  "--storagectl", "SATA",
+                                  "--port", "0",
+                                  "--device", "0",
+                                  "--type", "hdd",
+                                  "--medium", vdi_path], timeout=30, check=True)
+                    
+                    # Netzwerk konfigurieren (NAT für Internet-Zugriff)
+                    subprocess.run([vboxmanage, "modifyvm", vm_name,
+                                  "--nic1", "nat"], timeout=30, check=True)
+                    
+                    # Startup-Skript für MakeMKV Installation erstellen
+                    self.root.after(0, lambda: self.vm_status.config(text="Erstelle Installations-Skript..."))
+                    
+                    # Shared Folder für Skript-Übergabe einrichten
+                    script_dir = os.path.join(temp_dir, "shared")
+                    os.makedirs(script_dir, exist_ok=True)
+                    
+                    # Installations-Skript schreiben
+                    script_path = os.path.join(script_dir, "install_makemkv.sh")
+                    with open(script_path, "w", encoding="utf-8") as f:
+                        f.write("""#!/bin/sh
+# MakeMKV Installation Script für TinyCore Linux
+
+# System aktualisieren
+tce-load -wi compiletc
+tce-load -wi git
+tce-load -wi bash
+
+# MakeMKV Abhängigkeiten
+tce-load -wi openssl-dev
+tce-load -wi expat2-dev
+tce-load -wi libdrm-dev
+tce-load -wi ffmpeg-dev
+
+# MakeMKV OSS herunterladen und kompilieren
+cd /tmp
+wget https://www.makemkv.com/download/makemkv-oss-1.17.5.tar.gz
+wget https://www.makemkv.com/download/makemkv-bin-1.17.5.tar.gz
+
+tar -xzf makemkv-oss-1.17.5.tar.gz
+tar -xzf makemkv-bin-1.17.5.tar.gz
+
+cd makemkv-oss-1.17.5
+./configure
+make
+sudo make install
+
+cd ../makemkv-bin-1.17.5
+make
+sudo make install
+
+echo "MakeMKV Installation abgeschlossen"
+""")
+                    
+                    # Shared Folder zur VM hinzufügen
+                    subprocess.run([vboxmanage, "sharedfolder", "add", vm_name,
+                                  "--name", "shared",
+                                  "--hostpath", script_dir,
+                                  "--automount"], timeout=30, check=True)
+                    
+                    # VM starten
+                    self.root.after(0, lambda: self.vm_status.config(text="Starte VM..."))
+                    subprocess.run([vboxmanage, "startvm", vm_name, "--type", "gui"], timeout=30)
+                    
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "VM erstellt",
+                        f"Virtuelle Maschine '{vm_name}' wurde erstellt und gestartet.\n\n"
+                        "Die VM sollte automatisch von der TinyCore ISO booten.\n\n"
+                        "WICHTIG:\n"
+                        "• Falls schwarzer Bildschirm: Drücken Sie ENTER\n"
+                        "• Falls Boot-Menü erscheint: Wählen Sie die erste Option\n"
+                        "• Bei Problemen: Drücken Sie F12 und wählen Sie 'c' für CD-ROM\n\n"
+                        "TinyCore bootet direkt in die grafische Oberfläche.\n"
+                        "Sie können dann im Terminal MakeMKV installieren."))
+                    
+                    self.root.after(0, lambda: self.vm_status.config(text="VM läuft - TinyCore sollte booten"))
+                    self.logger("info", f"VM {vm_name} erstellt und gestartet - Boot-Device: DVD only")
+                    
+                except Exception as e:
+                    # Cleanup bei Fehler
+                    try:
+                        subprocess.run([vboxmanage, "unregistervm", vm_name, "--delete"], timeout=30)
+                    except:
+                        pass
+                    raise e
+                    
+            except subprocess.TimeoutExpired:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Timeout", "Die Operation hat zu lange gedauert."))
+                self.root.after(0, lambda: self.vm_status.config(text="Fehler: Timeout"))
+                self.logger("error", "VM-Erstellung Timeout")
+            except subprocess.CalledProcessError as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Fehler", f"Fehler beim Erstellen der VM:\n{e}"))
+                self.root.after(0, lambda: self.vm_status.config(text="Fehler beim Erstellen"))
+                self.logger("error", f"VM-Erstellung Fehler: {e}")
             except Exception as e:
-                self.progress_queue.put(("error", f"Rippen fehlgeschlagen: {e}"))
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Fehler", f"Unerwarteter Fehler:\n{e}"))
+                self.root.after(0, lambda: self.vm_status.config(text="Fehler"))
+                self.logger("error", f"VM-Erstellung unerwarteter Fehler: {e}")
+        
         threading.Thread(target=worker, daemon=True).start()
-
-    def rip_selected_titles_merged(self):
-        # Rippe mehrere Titel und füge sie zu einer MKV zusammen
-        if not self.makemkv_available:
-            if not self.ensure_makemkv():
-                return
-        drive = self.dvd_drive_var.get()
-        if not drive:
-            messagebox.showwarning("Kein Laufwerk", "Bitte zuerst ein DVD-Laufwerk auswählen.")
-            return
-        outdir = self.dvd_out_path.get()
-        if not os.path.isdir(outdir):
-            messagebox.showerror("Fehler", "Ausgabeordner existiert nicht.")
-            return
-        idxs = self.get_selected_title_indexes()
-        if not idxs:
-            messagebox.showinfo("Info", "Bitte wählen Sie mindestens zwei Titel aus.")
-            return
-        if len(idxs) == 1:
-            # Fallback: nur ein Titel, normal rippen
-            self.rip_selected_titles()
-            return
-
-        self.dvd_status.config(text=f"Rippe und merge {len(idxs)} Titel...")
-
-        def has_mkvmerge():
-            try:
-                r = subprocess.run(["mkvmerge", "-V"], capture_output=True, text=True, timeout=10)
-                return r.returncode == 0
-            except Exception:
-                return False
-
-        def worker():
-            import tempfile, time, shutil
-            try:
-                tmpdir = tempfile.mkdtemp(prefix="mkvmerge_", dir=outdir)
-                created_files = []
-                disc_idx = self._get_disc_index_for_drive(drive)
-                if disc_idx is None:
-                    self.progress_queue.put(("error", "Konnte Disc-Index für das Laufwerk nicht ermitteln."))
-                    shutil.rmtree(tmpdir, ignore_errors=True)
-                    return
-                for tidx in idxs:
-                    before = set(os.listdir(tmpdir))
-                    cmd = [self.makemkv_cmd, "-r", "--cache=4", "--progress=-stdout", "mkv", f"disc:{disc_idx}", str(tidx), tmpdir]
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
-                    if r.returncode != 0:
-                        self.progress_queue.put(("error", f"Rippen von Titel {tidx} fehlgeschlagen: {r.stderr[:800]}"))
-                        shutil.rmtree(tmpdir, ignore_errors=True)
-                        return
-                    after = set(os.listdir(tmpdir))
-                    new = sorted(list(after - before))
-                    # Pick MKV files only
-                    new_mkvs = [os.path.join(tmpdir, n) for n in new if n.lower().endswith(".mkv")]
-                    if not new_mkvs:
-                        # as fallback, take the newest mkv in directory
-                        cand = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.lower().endswith('.mkv')]
-                        cand.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-                        if cand:
-                            new_mkvs = [cand[0]]
-                    if not new_mkvs:
-                        self.progress_queue.put(("error", f"Konnte MKV-Datei für Titel {tidx} nicht finden."))
-                        shutil.rmtree(tmpdir, ignore_errors=True)
-                        return
-                    created_files.append(new_mkvs[0])
-
-                # Merge step
-                ts = time.strftime("%Y%m%d_%H%M%S")
-                out_file = os.path.join(outdir, f"DVD_Merged_{ts}.mkv")
-                if has_mkvmerge():
-                    # mkvmerge append mode
-                    # Syntax: mkvmerge -o out.mkv file1.mkv + file2.mkv + file3.mkv
-                    merge_cmd = ["mkvmerge", "-o", out_file, created_files[0]]
-                    for f in created_files[1:]:
-                        merge_cmd += ["+", f]
-                    mr = subprocess.run(merge_cmd, capture_output=True, text=True, timeout=7200)
-                    if mr.returncode != 0:
-                        self.progress_queue.put(("error", f"mkvmerge fehlgeschlagen: {mr.stderr[:800]}"))
-                        shutil.rmtree(tmpdir, ignore_errors=True)
-                        return
-                elif self.ffmpeg_available:
-                    # ffmpeg concat demuxer
-                    list_path = os.path.join(tmpdir, "concat.txt")
-                    with open(list_path, "w", encoding="utf-8") as f:
-                        for p in created_files:
-                            # Escaping for Windows paths
-                            f.write(f"file '{p.replace("'", "'\\''")}'\n")
-                    mr = subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", out_file], capture_output=True, text=True, timeout=7200)
-                    if mr.returncode != 0:
-                        self.progress_queue.put(("error", f"ffmpeg Merge fehlgeschlagen: {mr.stderr[:800]}"))
-                        shutil.rmtree(tmpdir, ignore_errors=True)
-                        return
-                else:
-                    self.progress_queue.put(("error", "Weder mkvmerge noch ffmpeg verfügbar, kann nicht mergen."))
-                    shutil.rmtree(tmpdir, ignore_errors=True)
-                    return
-
-                # Cleanup temp
-                shutil.rmtree(tmpdir, ignore_errors=True)
-                self.progress_queue.put(("dvd_rip_complete", len(idxs)))
-            except Exception as e:
-                self.progress_queue.put(("error", f"Merge fehlgeschlagen: {e}"))
-        threading.Thread(target=worker, daemon=True).start()
-
-    # ----- Treeview checkbox helpers -----
-    def on_titles_click(self, event):
-        # Toggle checkbox if first column clicked
-        region = self.titles_tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
-        col = self.titles_tree.identify_column(event.x)  # '#1' -> first
-        if col != "#1":
-            return
-        row = self.titles_tree.identify_row(event.y)
-        if not row:
-            return
-        values = list(self.titles_tree.item(row, 'values'))
-        # values: [sel, idx, name, length, size]
-        try:
-            idx = int(values[1])
-        except Exception:
-            return
-        if values[0] == "[x]":
-            values[0] = "[ ]"
-            if idx in self.selected_title_ids:
-                self.selected_title_ids.remove(idx)
-        else:
-            values[0] = "[x]"
-            self.selected_title_ids.add(idx)
-        self.titles_tree.item(row, values=values)
-
-    def get_selected_title_indexes(self):
-        # Prefer checkbox selection; fallback to GUI selection
-        if self.selected_title_ids:
-            return sorted(self.selected_title_ids)
-        idxs = []
-        for iid in self.titles_tree.selection():
-            values = self.titles_tree.item(iid, 'values')
-            # if headings were extended, idx is at position 1 now
-            try:
-                idxs.append(int(values[1]))
-            except Exception:
-                continue
-        return sorted(idxs)
 
     # ---------------------- Extras ----------------------
     def check_formats(self):
@@ -1234,19 +1182,6 @@ class YouTubeDownloaderApp:
                     else:
                         self.status_label.config(text="Formatprüfung fehlgeschlagen")
                         messagebox.showerror("Fehler", f"Formate konnten nicht abgerufen werden:\n{err}")
-                elif msg_type == "dvd_titles":
-                    titles = data[0]
-                    # Clear and insert
-                    for iid in self.titles_tree.get_children():
-                        self.titles_tree.delete(iid)
-                    self.selected_title_ids.clear()
-                    for t in titles:
-                        # t: (idx, name, length, size)
-                        self.titles_tree.insert('', tk.END, values=("[ ]", t[0], t[1], t[2], t[3]))
-                    self.dvd_status.config(text=f"{len(titles)} Titel geladen")
-                elif msg_type == "dvd_rip_complete":
-                    count = data[0]
-                    self.dvd_status.config(text=f"Rippen abgeschlossen ({count} Titel)")
                 elif msg_type == "audio_progress":
                     prog, text = data
                     self.audio_progress_var.set(prog)

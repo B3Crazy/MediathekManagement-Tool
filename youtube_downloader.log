@@ -1,0 +1,156 @@
+2025-11-23 17:52:01 [INFO] CSV-Datei für fehlgeschlagene Downloads geleert
+2025-11-23 17:52:01 [INFO] Anwendung gestartet
+2025-11-23 17:52:39 [INFO] Audio-Speicherort geändert: C:/Users/Paul Szelag/Videos
+2025-11-23 17:52:41 [INFO] Video-URL zur Liste hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3cs
+2025-11-23 17:52:45 [INFO] Video-Speicherort geändert: C:/Users/Paul Szelag/Videos
+2025-11-23 17:52:46 [INFO] Video-Download gestartet: 1 URLs, Format: mp4, Ziel: C:/Users/Paul Szelag/Videos
+2025-11-23 17:53:56 [INFO] Video https://www.youtube.com/watch?v=-6pMes1L3cs erfolgreich heruntergeladen
+2025-11-23 17:53:56 [INFO] Alle Downloads abgeschlossen
+2025-11-23 17:54:13 [INFO] Video-Liste geleert (1 URLs entfernt)
+2025-11-23 17:54:19 [INFO] Video-URL zur Liste hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:21 [INFO] Video-Download gestartet: 1 URLs, Format: mp4, Ziel: C:/Users/Paul Szelag/Videos
+2025-11-23 17:54:22 [WARNING] Versuch 1 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:22 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:22 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:25 [WARNING] Versuch 2 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:25 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:25 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:28 [WARNING] Versuch 3 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:28 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:28 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:31 [WARNING] Versuch 4 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:31 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:31 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:34 [WARNING] Versuch 5 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:34 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:34 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:37 [WARNING] Versuch 6 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:37 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:37 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:39 [WARNING] Versuch 7 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:39 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:39 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:42 [WARNING] Versuch 8 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:42 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:42 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:45 [WARNING] Versuch 9 für Video 1 fehlgeschlagen:
+2025-11-23 17:54:45 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:45 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:48 [ERROR] Video 1 nach 10 Versuchen fehlgeschlagen:
+2025-11-23 17:54:48 [ERROR] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:48 [ERROR] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:54:48 [INFO] Fehlgeschlagener Video-Download zur CSV hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:54:48 [INFO] Alle Downloads abgeschlossen
+2025-11-23 17:55:56 [INFO] Anwendung beendet
+2025-11-23 17:56:16 [INFO] CSV-Datei für fehlgeschlagene Downloads geleert
+2025-11-23 17:56:16 [INFO] Anwendung gestartet
+2025-11-23 17:56:23 [INFO] Audio-Speicherort geändert: C:/Users/Paul Szelag/Videos
+2025-11-23 17:56:35 [INFO] Audio-URL zur Liste hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:36 [INFO] Audio-Download gestartet: 1 URLs, Format: mp3, Ziel: C:/Users/Paul Szelag/Videos
+2025-11-23 17:56:37 [WARNING] Versuch 1 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:37 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:37 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:40 [WARNING] Versuch 2 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:40 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:40 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:42 [WARNING] Versuch 3 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:42 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:42 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:45 [WARNING] Versuch 4 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:45 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:45 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:48 [WARNING] Versuch 5 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:48 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:48 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:51 [WARNING] Versuch 6 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:51 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:51 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:54 [WARNING] Versuch 7 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:54 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:54 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:56:57 [WARNING] Versuch 8 für Audio 1 fehlgeschlagen:
+2025-11-23 17:56:57 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:56:57 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:57:00 [WARNING] Versuch 9 für Audio 1 fehlgeschlagen:
+2025-11-23 17:57:00 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:57:00 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:57:03 [ERROR] Audio 1 nach 10 Versuchen fehlgeschlagen:
+2025-11-23 17:57:03 [ERROR] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:57:03 [ERROR] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:57:03 [INFO] Fehlgeschlagener Audio-Download zur CSV hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:57:03 [INFO] Alle Audio-Downloads abgeschlossen
+2025-11-23 17:58:14 [INFO] Anwendung beendet
+2025-11-23 17:58:17 [INFO] Session-Trenner zur CSV-Datei hinzugefügt
+2025-11-23 17:58:17 [INFO] Anwendung gestartet
+2025-11-23 17:58:25 [INFO] Audio-Speicherort geändert: C:/Users/Paul Szelag/Videos
+2025-11-23 17:58:29 [INFO] Audio-URL zur Liste hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:30 [INFO] Audio-Download gestartet: 1 URLs, Format: mp3, Ziel: C:/Users/Paul Szelag/Videos
+2025-11-23 17:58:31 [WARNING] Versuch 1 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:31 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:31 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:34 [WARNING] Versuch 2 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:34 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:34 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:37 [WARNING] Versuch 3 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:37 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:37 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:40 [WARNING] Versuch 4 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:40 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:40 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:43 [WARNING] Versuch 5 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:43 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:43 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:46 [WARNING] Versuch 6 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:46 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:46 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:49 [WARNING] Versuch 7 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:49 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:49 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:52 [WARNING] Versuch 8 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:52 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:52 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:55 [WARNING] Versuch 9 für Audio 1 fehlgeschlagen:
+2025-11-23 17:58:55 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:55 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:57 [ERROR] Audio 1 nach 10 Versuchen fehlgeschlagen:
+2025-11-23 17:58:57 [ERROR] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:57 [ERROR] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:58:57 [INFO] Fehlgeschlagener Audio-Download zur CSV hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:58:57 [INFO] Alle Audio-Downloads abgeschlossen
+2025-11-23 17:59:02 [INFO] Audio-Download gestartet: 1 URLs, Format: mp3, Ziel: C:/Users/Paul Szelag/Videos
+2025-11-23 17:59:03 [WARNING] Versuch 1 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:03 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:03 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:06 [WARNING] Versuch 2 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:06 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:06 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:09 [WARNING] Versuch 3 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:09 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:09 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:12 [WARNING] Versuch 4 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:12 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:12 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:15 [WARNING] Versuch 5 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:15 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:15 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:18 [WARNING] Versuch 6 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:18 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:18 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:21 [WARNING] Versuch 7 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:21 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:21 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:24 [WARNING] Versuch 8 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:24 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:24 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:27 [WARNING] Versuch 9 für Audio 1 fehlgeschlagen:
+2025-11-23 17:59:27 [WARNING] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:27 [WARNING] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:30 [ERROR] Audio 1 nach 10 Versuchen fehlgeschlagen:
+2025-11-23 17:59:30 [ERROR] [youtube:truncated_id] Extracting URL: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:30 [ERROR] [youtube:truncated_id] -6pMes1L3c: Incomplete YouTube ID -6pMes1L3c. URL https://www.youtube.com/watch?v=-6pMes1L3c looks truncated.
+2025-11-23 17:59:30 [INFO] Fehlgeschlagener Audio-Download zur CSV hinzugefügt: https://www.youtube.com/watch?v=-6pMes1L3c
+2025-11-23 17:59:30 [INFO] Alle Audio-Downloads abgeschlossen
+2025-11-23 17:59:37 [INFO] Anwendung beendet
+2025-11-23 17:59:40 [INFO] Session-Trenner zur CSV-Datei hinzugefügt
+2025-11-23 17:59:40 [INFO] Anwendung gestartet
+2025-11-23 17:59:43 [INFO] Anwendung beendet

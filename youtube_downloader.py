@@ -18,6 +18,7 @@ import queue
 import subprocess
 import logging
 import re
+import csv
 
 
 class YouTubeDownloaderApp:
@@ -42,6 +43,15 @@ class YouTubeDownloaderApp:
 
         # Queues/state
         self.progress_queue = queue.Queue()
+
+        # Logger-Konfiguration (einmalig im Projektverzeichnis)
+        self.setup_logger()
+        
+        # CSV-Datei für fehlgeschlagene Downloads initialisieren
+        self.failed_downloads_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "failed_downloads.csv")
+        self.clear_failed_downloads_csv()
+        
+        self.logger("info", "Anwendung gestartet")
 
         # Build UI (two tabs)
         self.create_widgets()
@@ -232,6 +242,7 @@ class YouTubeDownloaderApp:
         folder = filedialog.askdirectory(initialdir=self.download_path.get())
         if folder:
             self.download_path.set(folder)
+            self.logger("info", f"Video-Speicherort geändert: {folder}")
 
     def add_url_to_list(self):
         url = self.url_entry.get().strip()
@@ -247,11 +258,13 @@ class YouTubeDownloaderApp:
         
         if url in self.url_links:
             messagebox.showinfo("Info", "Diese URL ist bereits in der Liste.")
+            self.logger("info", f"Versuch, doppelte URL hinzuzufügen: {url}")
             return
         self.url_links.append(url)
         self.url_listbox.insert(tk.END, url)
         self.url_entry.delete(0, tk.END)
         self.on_url_entry_focus_out(None)
+        self.logger("info", f"Video-URL zur Liste hinzugefügt: {url}")
 
     def remove_selected_url(self):
         sel = self.url_listbox.curselection()
@@ -259,24 +272,36 @@ class YouTubeDownloaderApp:
             messagebox.showinfo("Info", "Bitte wählen Sie eine URL aus der Liste aus.")
             return
         idx = sel[0]
+        removed_url = self.url_links[idx]
         self.url_listbox.delete(idx)
         del self.url_links[idx]
+        self.logger("info", f"Video-URL aus Liste entfernt: {removed_url}")
 
     def clear_url_list(self):
         if not self.url_links:
             return
         if messagebox.askyesno("Liste leeren", "Möchten Sie alle URLs aus der Liste entfernen?"):
+            count = len(self.url_links)
             self.url_links.clear()
             self.url_listbox.delete(0, tk.END)
+            self.logger("info", f"Video-Liste geleert ({count} URLs entfernt)")
 
     # ---------------------- Tools ----------------------
-    def logger(self, severity, message: str):
+    def setup_logger(self):
+        """Einmalige Konfiguration des Loggers im Projektverzeichnis"""
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        log_file = os.path.join(project_dir, "youtube_downloader.log")
+        
         logging.basicConfig(
-            filename=os.path.join(self.audio_path.get(), "youtube_downloader.log"),
+            filename=log_file,
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
+            force=True
         )
+    
+    def logger(self, severity, message: str):
+        """Loggt Nachrichten mit entsprechendem Schweregrad"""
         if severity == "info":
             logging.info(message)
         elif severity == "warning":
@@ -285,7 +310,35 @@ class YouTubeDownloaderApp:
             logging.error(message)
         else:
             logging.debug(message)
-        
+    
+    def clear_failed_downloads_csv(self):
+        """Fügt einen Session-Trenner zur CSV-Datei hinzu"""
+        try:
+            # Prüfe ob Datei existiert, wenn nicht, erstelle Header
+            if not os.path.exists(self.failed_downloads_csv):
+                with open(self.failed_downloads_csv, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['URL', 'Typ', 'Zeitstempel'])
+                self.logger("info", "CSV-Datei für fehlgeschlagene Downloads erstellt")
+            else:
+                # Füge Session-Trenner hinzu
+                with open(self.failed_downloads_csv, 'a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['---', '---', '---'])
+                self.logger("info", "Session-Trenner zur CSV-Datei hinzugefügt")
+        except Exception as e:
+            self.logger("error", f"Fehler beim Bearbeiten der CSV-Datei: {e}")
+    
+    def add_failed_download_to_csv(self, url: str, download_type: str, error_details: str = ""):
+        """Fügt einen fehlgeschlagenen Download zur CSV-Datei hinzu"""
+        try:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.failed_downloads_csv, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([url, download_type, timestamp])
+            self.logger("info", f"Fehlgeschlagener {download_type}-Download zur CSV hinzugefügt: {url}")
+        except Exception as e:
+            self.logger("error", f"Fehler beim Schreiben in CSV-Datei: {e}")
     
     def check_ytdlp(self) -> bool:
         try:
@@ -339,11 +392,13 @@ class YouTubeDownloaderApp:
                 "als WebM statt MKV gespeichert werden.\n\n"
                 "Möchten Sie trotzdem fortfahren?"
             ):
+                self.logger("info", "Video-Download abgebrochen (MKV ohne ffmpeg)")
                 return
 
         self.is_downloading = True
         self.download_button.config(text="Download läuft...", state="disabled")
         self.progress_var.set(0)
+        self.logger("info", f"Video-Download gestartet: {len(self.url_links)} URLs, Format: {self.download_format.get()}, Ziel: {self.download_path.get()}")
         threading.Thread(target=self.download_videos, daemon=True).start()
 
     def select_format_string(self) -> str:
@@ -461,6 +516,8 @@ class YouTubeDownloaderApp:
                             self.logger("error", f"Video {idx+1} nach {max_retries} Versuchen fehlgeschlagen:")
                             for err_line in filtered_err.splitlines():
                                 self.logger("error", err_line)
+                            # Füge zur CSV hinzu
+                            self.add_failed_download_to_csv(url, "Video", filtered_err[:500])
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:
@@ -469,6 +526,8 @@ class YouTubeDownloaderApp:
                     else:
                         self.progress_queue.put(("error", f"Timeout bei Video {idx+1} nach {max_retries} Versuchen"))
                         self.logger("error", f"Timeout bei Video {idx+1} nach {max_retries} Versuchen")
+                        # Füge zur CSV hinzu
+                        self.add_failed_download_to_csv(url, "Video", "Timeout nach 10 Versuchen")
                 except Exception as e:
                     if attempt < max_retries:
                         self.progress_queue.put(("current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
@@ -476,6 +535,8 @@ class YouTubeDownloaderApp:
                     else:
                         self.progress_queue.put(("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}"))
                         self.logger("error", f"Fehler bei Video {idx+1} nach {max_retries} Versuchen: {e}")
+                        # Füge zur CSV hinzu
+                        self.add_failed_download_to_csv(url, "Video", str(e))
 
         self.progress_queue.put(("complete", 100, "Alle Downloads abgeschlossen!"))
         self.logger("info", "Alle Downloads abgeschlossen")
@@ -485,6 +546,7 @@ class YouTubeDownloaderApp:
         folder = filedialog.askdirectory(initialdir=self.audio_path.get())
         if folder:
             self.audio_path.set(folder)
+            self.logger("info", f"Audio-Speicherort geändert: {folder}")
 
     def on_audio_url_entry_focus_in(self, _):
         if self.audio_url_entry.get() == self.audio_url_placeholder:
@@ -510,12 +572,14 @@ class YouTubeDownloaderApp:
         
         if url in self.audio_links:
             messagebox.showinfo("Info", "Diese URL ist bereits in der Liste.")
+            self.logger("info", f"Versuch, doppelte URL hinzuzufügen: {url}")
             return
         
         self.audio_links.append(url)
         self.audio_url_listbox.insert(tk.END, url)
         self.audio_url_entry.delete(0, tk.END)
         self.on_audio_url_entry_focus_out(None)
+        self.logger("info", f"Audio-URL zur Liste hinzugefügt: {url}")
 
     def remove_selected_audio_url(self):
         sel = self.audio_url_listbox.curselection()
@@ -523,15 +587,19 @@ class YouTubeDownloaderApp:
             messagebox.showinfo("Info", "Bitte wählen Sie eine URL aus der Liste aus.")
             return
         idx = sel[0]
+        removed_url = self.audio_links[idx]
         self.audio_url_listbox.delete(idx)
         del self.audio_links[idx]
+        self.logger("info", f"Audio-URL aus Liste entfernt: {removed_url}")
 
     def clear_audio_url_list(self):
         if not self.audio_links:
             return
         if messagebox.askyesno("Liste leeren", "Möchten Sie alle URLs aus der Liste entfernen?"):
+            count = len(self.audio_links)
             self.audio_links.clear()
             self.audio_url_listbox.delete(0, tk.END)
+            self.logger("info", f"Audio-Liste geleert ({count} URLs entfernt)")
 
     def start_audio_download(self):
         if self.is_downloading_audio:
@@ -542,11 +610,13 @@ class YouTubeDownloaderApp:
             return
         if not os.path.isdir(self.audio_path.get()):
             messagebox.showerror("Fehler", "Der gewählte Speicherort existiert nicht.")
+            self.logger("error", "Der gewählte Audio-Speicherort existiert nicht.")
             return
 
         self.is_downloading_audio = True
         self.audio_download_button.config(text="Download läuft...", state="disabled")
         self.audio_progress_var.set(0)
+        self.logger("info", f"Audio-Download gestartet: {len(self.audio_links)} URLs, Format: {self.audio_format.get()}, Ziel: {self.audio_path.get()}")
         threading.Thread(target=self.download_audio, daemon=True).start()
 
     def download_audio(self):
@@ -720,6 +790,8 @@ class YouTubeDownloaderApp:
                             self.logger("error", f"Audio {idx+1} nach {max_retries} Versuchen fehlgeschlagen:")
                             for err_line in filtered_err.splitlines():
                                 self.logger("error", err_line)
+                            # Füge zur CSV hinzu
+                            self.add_failed_download_to_csv(url, "Audio", filtered_err[:500])
                             
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries:
@@ -728,6 +800,8 @@ class YouTubeDownloaderApp:
                     else:
                         self.progress_queue.put(("audio_error", f"Timeout bei Audio {idx+1} nach {max_retries} Versuchen"))
                         self.logger("error", f"Timeout bei Audio {idx+1} nach {max_retries} Versuchen")
+                        # Füge zur CSV hinzu
+                        self.add_failed_download_to_csv(url, "Audio", "Timeout nach 10 Versuchen")
                 except Exception as e:
                     if attempt < max_retries:
                         self.progress_queue.put(("audio_current_progress", 0, f"Fehler bei Versuch {attempt}, versuche erneut..."))
@@ -735,6 +809,8 @@ class YouTubeDownloaderApp:
                     else:
                         self.progress_queue.put(("audio_error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}"))
                         self.logger("error", f"Fehler bei Audio {idx+1} nach {max_retries} Versuchen: {e}")
+                        # Füge zur CSV hinzu
+                        self.add_failed_download_to_csv(url, "Audio", str(e))
 
         self.progress_queue.put(("audio_complete", 100, f"Alle {format_type.upper()}-Downloads abgeschlossen!"))
         self.logger("info", "Alle Audio-Downloads abgeschlossen")
@@ -747,6 +823,7 @@ class YouTubeDownloaderApp:
             return
         url = self.url_links[sel[0]]
         self.status_label.config(text="Prüfe verfügbare Formate...")
+        self.logger("info", f"Formatprüfung gestartet für: {url}")
 
         def worker():
             try:
@@ -760,8 +837,10 @@ class YouTubeDownloaderApp:
                     txt.insert("1.0", r.stdout)
                     txt.config(state=tk.DISABLED)
                     self.progress_queue.put(("format_check_complete", True, ""))
+                    self.logger("info", "Formatprüfung erfolgreich abgeschlossen")
                 else:
                     self.progress_queue.put(("format_check_complete", False, r.stderr))
+                    self.logger("error", f"Formatprüfung fehlgeschlagen: {r.stderr}")
             except Exception as e:
                 self.progress_queue.put(("format_check_complete", False, str(e)))
         threading.Thread(target=worker, daemon=True).start()
@@ -838,10 +917,12 @@ def main():
     app = YouTubeDownloaderApp(root)
 
     def on_close():
-        if app.is_downloading:
+        if app.is_downloading or app.is_downloading_audio:
             if messagebox.askokcancel("Beenden", "Download läuft noch. Wirklich beenden?"):
+                app.logger("info", "Anwendung während laufendem Download beendet")
                 root.destroy()
         else:
+            app.logger("info", "Anwendung beendet")
             root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_close)

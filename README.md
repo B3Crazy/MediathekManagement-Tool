@@ -351,15 +351,13 @@ Geplante Features für zukünftige Versionen:
 
 - [ ] Playlist-Unterstützung
 - [ ] Untertitel-Download (optional)
-- [ ] Download-Warteschlangen-Speicherung/Laden
-- [ ] Automatische Qualitätsauswahl (z.B. "immer 1080p")
 - [ ] Download-Geschwindigkeitsanzeige
 - [ ] Parallel-Downloads
 - [ ] Integration mit mehr Audio-Formaten (FLAC, OPUS)
 - [ ] Kommandozeilen-Modus
-- [ ] Portable Version (keine Installation erforderlich)
 - [ ] Übersetzungen (Englisch, weitere Sprachen)
 - [ ] Linux unterstützung
+- [ ] Web implementation
 
 ## Mitwirkende
 

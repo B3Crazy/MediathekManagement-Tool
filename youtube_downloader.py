@@ -48,7 +48,7 @@ class YouTubeDownloaderApp:
         self.setup_logger()
         
         # CSV-Datei für fehlgeschlagene Downloads initialisieren
-        self.failed_downloads_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "failed_downloads.csv")
+        self.failed_downloads_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logging\\failed_downloads.csv")
         self.clear_failed_downloads_csv()
         
         self.logger("info", "Anwendung gestartet")
@@ -290,7 +290,7 @@ class YouTubeDownloaderApp:
     def setup_logger(self):
         """Einmalige Konfiguration des Loggers im Projektverzeichnis"""
         project_dir = os.path.dirname(os.path.abspath(__file__))
-        log_file = os.path.join(project_dir, "youtube_downloader.log")
+        log_file = os.path.join(project_dir, "logging\\youtube_downloader.log")
         
         logging.basicConfig(
             filename=log_file,

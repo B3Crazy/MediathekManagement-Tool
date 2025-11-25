@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
 
-Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audio sowie zum Rippen von DVDs zu MKV-Dateien. Die Anwendung bietet eine benutzerfreundliche grafische Oberfläche mit Echtzeit-Fortschrittsanzeige und umfangreichen Konfigurationsmöglichkeiten.
+Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audios. Die Anwendung bietet eine benutzerfreundliche grafische Oberfläche mit Echtzeit-Fortschrittsanzeige. Bis auf den Speicherort werden nötige einstellung automatisch vorgenommen.
 
 ## Inhaltsverzeichnis
 
@@ -17,7 +17,6 @@ Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audi
 - [Verwendung](#verwendung)
   - [YouTube-Video-Download](#youtube-video-download)
   - [YouTube-Audio-Download](#youtube-audio-download)
-  - [DVD zu MKV](#dvd-zu-mkv)
 - [Konfiguration](#konfiguration)
 - [Funktionen im Detail](#funktionen-im-detail)
 - [Fehlerbehebung](#fehlerbehebung)
@@ -45,14 +44,6 @@ Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audi
 - **Metadata**: Einbettung von Cover-Art, Titel, Künstler und Jahr (außer bei WAV)
 - **Intelligente Metadaten**: Automatische Übernahme des YouTube-Kanal-Namens als Artist
 - **Detaillierte Fehlerprotokolle**: Separate Logdateien für Audio-Downloads
-
-### DVD zu MKV (nicht funktionell)
-- **DVD-Ripping**: Konvertierung von DVD-Titeln zu MKV-Dateien
-- **Mehrfachauswahl**: Rippen Sie mehrere Titel gleichzeitig
-- **Merge-Funktion**: Kombinieren Sie mehrere Titel in eine einzelne MKV-Datei
-- **Titel-Vorschau**: Zeigt Details zu jedem Titel (Länge, Größe) vor dem Ripping
-- **MakeMKV-Integration**: Automatische Erkennung oder manuelle Auswahl der MakeMKV-Installation
-- **Laufwerkserkennung**: Automatisches Scannen nach verfügbaren DVD-Laufwerken
 
 ## Systemanforderungen
 
@@ -125,19 +116,6 @@ FFmpeg ermöglicht erweiterte Funktionen wie das Zusammenführen von separaten V
 ```bash
 choco install ffmpeg
 ```
-
-#### MakeMKV (für DVD-Ripping)
-
-**Installation**:
-1. Laden Sie MakeMKV von [makemkv.com](https://www.makemkv.com/download/) herunter
-2. Installieren Sie das Programm (Standard-Installationspfad wird automatisch erkannt)
-3. Aktivieren Sie die Software mit einem Beta-Key oder einer Lizenz
-
-**Hinweis**: Die Anwendung erkennt MakeMKV automatisch in den Standard-Installationspfaden:
-- `C:\Program Files (x86)\MakeMKV\makemkvcon.exe`
-- `C:\Program Files\MakeMKV\makemkvcon.exe`
-
-Falls MakeMKV nicht erkannt wird, können Sie den Pfad manuell auswählen.
 
 ## Verwendung
 

@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
 
-Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audios. Die Anwendung bietet eine benutzerfreundliche grafische Oberfläche mit Echtzeit-Fortschrittsanzeige. Bis auf den Speicherort werden nötige einstellung automatisch vorgenommen.
+Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audios. Die Anwendung bietet eine benutzerfreundliche grafische Oberfläche mit Echtzeit-Fortschrittsanzeige. Bis auf den Speicherort werden nötige Einstellung automatisch vorgenommen.
 
 ## Inhaltsverzeichnis
 

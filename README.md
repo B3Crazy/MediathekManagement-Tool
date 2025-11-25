@@ -199,40 +199,6 @@ Falls MakeMKV nicht erkannt wird, können Sie den Pfad manuell auswählen.
    - Bei Problemen wird `audio_error.log` im Zielordner erstellt
    - Enthält detaillierte Informationen zu fehlgeschlagenen Downloads
 
-### DVD zu MKV
-
-1. **Wechseln Sie zum Tab** **"DVD → MKV"**
-
-2. **DVD-Laufwerk scannen**:
-   - Legen Sie eine DVD ein
-   - Klicken Sie auf "Laufwerke scannen"
-   - Das Laufwerk wird automatisch erkannt (sucht nach `VIDEO_TS`-Ordner)
-
-3. **Ausgabeordner wählen**:
-   - Standard: `Videos`-Ordner des Benutzers
-   - Klicken Sie auf "Durchsuchen" zum Ändern
-
-4. **Titel laden**:
-   - Klicken Sie auf "Titel laden"
-   - Die Anwendung liest alle verfügbaren DVD-Titel mit Details:
-     - Titel-Nummer
-     - Name
-     - Länge
-     - Dateigröße
-
-5. **Titel auswählen**:
-   - Klicken Sie auf die Checkbox in der ersten Spalte zum Auswählen
-   - Oder: Markieren Sie Zeilen mit Maus/Tastatur
-
-6. **Ripping-Optionen**:
-   - **"Ausgewählte rippen"**: Jeder Titel wird als separate MKV-Datei gespeichert
-   - **"In 1 MKV rippen"**: Alle ausgewählten Titel werden zu einer Datei zusammengeführt
-     - Erfordert: MKVToolNix (mkvmerge) oder FFmpeg
-
-7. **Fortschritt**:
-   - Der Status wird am unteren Rand des Tabs angezeigt
-   - Ripping kann je nach DVD-Größe mehrere Minuten dauern
-
 ## Konfiguration
 
 ### Format-Strings und Qualität
@@ -272,9 +238,16 @@ Bei fehlgeschlagenen Downloads:
 
 ### Thumbnail und Metadata
 
-**Video-Downloads**:
-- Thumbnails werden in die Video-Datei eingebettet (MP4/MKV)
-- Metadaten umfassen: Titel, Uploader, Upload-Datum, Beschreibung
+**Video-Downloads (MP4)**:
+- Cover-Art: Höchstauflösendes YouTube-Thumbnail
+- Artist: YouTube-Kanal-Name (ohne @-Präfix)
+- Titel: Original-Video-Titel
+- Jahr: Upload-Jahr
+- Album: Optional (nicht standardmäßig gesetzt)
+
+**Video-Downloads (MKV)**
+- Keine Metadata-Einbettung
+- Thumbnail-Dateien werden automatisch entfernt
 
 **Audio-Downloads (MP3)**:
 - Cover-Art: Höchstauflösendes YouTube-Thumbnail
@@ -299,24 +272,6 @@ Die Anwendung bietet mehrere Fortschrittsebenen:
    - "Bette Thumbnail ein..."
    - "Bette Metadaten ein..."
 
-### DVD-Funktionalität
-
-**Titel-Analyse**:
-- Nutzt MakeMKV zur Extraktion von Titel-Informationen
-- Zeigt Länge in HH:MM:SS-Format
-- Zeigt Dateigröße in MiB
-
-**Ripping-Modi**:
-1. **Einzeln**: Jeder Titel → separate MKV-Datei
-2. **Zusammengeführt**: Mehrere Titel → eine MKV-Datei
-   - Bevorzugt: `mkvmerge` (MKVToolNix)
-   - Fallback: `ffmpeg` mit concat-Demuxer
-
-**Laufwerkserkennung**:
-- Scannt Laufwerksbuchstaben D: bis Z:
-- Prüft auf Vorhandensein des `VIDEO_TS`-Ordners
-- Automatische Disc-Index-Ermittlung
-
 ## Fehlerbehebung
 
 ### yt-dlp nicht gefunden
@@ -336,15 +291,6 @@ Die Anwendung bietet mehrere Fortschrittsebenen:
 1. FFmpeg installieren (siehe [Externe Abhängigkeiten](#externe-abhängigkeiten))
 2. Überprüfen Sie den PATH: `ffmpeg -version`
 3. Starten Sie die Anwendung neu
-
-### MakeMKV nicht gefunden
-
-**Problem**: DVD-Tab zeigt Fehler beim Laden von Titeln
-
-**Lösung**:
-1. MakeMKV installieren
-2. Die Anwendung fordert zur manuellen Auswahl von `makemkvcon.exe` auf
-3. Pfad speichern für zukünftige Verwendung
 
 ### Download schlägt wiederholt fehl
 
@@ -375,15 +321,6 @@ Die Anwendung bietet mehrere Fortschrittsebenen:
 **Lösung**:
 - Stellen Sie sicher, dass FFmpeg installiert ist
 - Bei Audio: WAV unterstützt keine Thumbnails (verwenden Sie MP3)
-
-### DVD-Merge funktioniert nicht
-
-**Problem**: "In 1 MKV rippen" schlägt fehl
-
-**Lösung**:
-1. Installieren Sie MKVToolNix: [mkvtoolnix.download](https://mkvtoolnix.download/)
-2. Oder stellen Sie sicher, dass FFmpeg verfügbar ist
-3. Überprüfen Sie die Fehlerausgabe für Details
 
 ## Häufig gestellte Fragen (FAQ)
 
@@ -444,6 +381,7 @@ Geplante Features für zukünftige Versionen:
 - [ ] Kommandozeilen-Modus
 - [ ] Portable Version (keine Installation erforderlich)
 - [ ] Übersetzungen (Englisch, weitere Sprachen)
+- [ ] Linux unterstützung
 
 ## Mitwirkende
 

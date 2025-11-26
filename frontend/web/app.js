@@ -6,11 +6,51 @@ let videoUrls = [];
 let audioUrls = [];
 let currentVideoTaskId = null;
 let currentAudioTaskId = null;
+let videoFolderHandle = null;
+let audioFolderHandle = null;
+
+// Get user's home directory Downloads folder as default
+const getDefaultDownloadPath = () => {
+    return 'Downloads';
+};
+
+// Folder selection functions
+async function selectVideoFolder() {
+    // Clear the field and give user helpful hint
+    const pathInput = document.getElementById('video-path');
+    pathInput.value = '';
+    pathInput.focus();
+    pathInput.placeholder = 'z.B. C:\\Users\\IhrName\\Downloads';
+    document.getElementById('video-path-hint').innerHTML = '<strong>WICHTIG:</strong> Geben Sie den VOLLSTÄNDIGEN Pfad ein (z.B. C:\\Users\\pauls\\Videos)';
+    document.getElementById('video-path-hint').style.color = '#ff6b6b';
+}
+
+async function selectAudioFolder() {
+    // Clear the field and give user helpful hint
+    const pathInput = document.getElementById('audio-path');
+    pathInput.value = '';
+    pathInput.focus();
+    pathInput.placeholder = 'z.B. C:\\Users\\IhrName\\Music';
+    document.getElementById('audio-path-hint').innerHTML = '<strong>WICHTIG:</strong> Geben Sie den VOLLSTÄNDIGEN Pfad ein (z.B. C:\\Users\\pauls\\Music)';
+    document.getElementById('audio-path-hint').style.color = '#ff6b6b';
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     checkBackendStatus();
     setInterval(checkBackendStatus, 10000); // Check every 10 seconds
+    
+    // Set default download paths and make them editable
+    const defaultPath = getDefaultDownloadPath();
+    const videoPathInput = document.getElementById('video-path');
+    const audioPathInput = document.getElementById('audio-path');
+    
+    videoPathInput.value = defaultPath;
+    audioPathInput.value = defaultPath;
+    
+    // Remove readonly attribute to allow editing
+    videoPathInput.removeAttribute('readonly');
+    audioPathInput.removeAttribute('readonly');
     
     // Enable enter key for URL inputs
     document.getElementById('video-url-input').addEventListener('keypress', (e) => {
@@ -188,11 +228,10 @@ async function startVideoDownload() {
     }
     
     const format = document.querySelector('input[name="video-format"]:checked').value;
-    const path = document.getElementById('video-path').value.trim();
+    let path = document.getElementById('video-path').value.trim();
     
     if (!path) {
-        alert('Bitte geben Sie einen Speicherort an.');
-        return;
+        path = getDefaultDownloadPath();
     }
     
     const button = document.getElementById('video-download-btn');
@@ -236,8 +275,16 @@ function pollVideoStatus() {
             if (!response.ok) throw new Error('Status abrufen fehlgeschlagen');
             
             const status = await response.json();
+            
+            // Update overall progress bar
             updateVideoProgress(status.progress);
             updateVideoStatus(status.message);
+            
+            // Update current file progress bar
+            if (status.current_file_progress !== undefined) {
+                updateVideoCurrentProgress(status.current_file_progress);
+                updateVideoCurrentStatus(status.current_file_message || '');
+            }
             
             if (status.status === 'complete') {
                 clearInterval(interval);
@@ -245,6 +292,10 @@ function pollVideoStatus() {
                 button.disabled = false;
                 button.textContent = 'Download starten';
                 currentVideoTaskId = null;
+                
+                // Reset current file progress
+                updateVideoCurrentProgress(0);
+                updateVideoCurrentStatus('');
                 
                 alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
             }
@@ -264,6 +315,16 @@ function updateVideoStatus(message) {
     document.getElementById('video-status').textContent = message;
 }
 
+function updateVideoCurrentProgress(progress) {
+    const fill = document.querySelector('#video-current-progress-bar .progress-fill');
+    fill.style.width = `${progress}%`;
+    fill.textContent = `${Math.round(progress)}%`;
+}
+
+function updateVideoCurrentStatus(message) {
+    document.getElementById('video-current-status').textContent = message;
+}
+
 // Audio download
 async function startAudioDownload() {
     if (audioUrls.length === 0) {
@@ -272,11 +333,10 @@ async function startAudioDownload() {
     }
     
     const format = document.querySelector('input[name="audio-format"]:checked').value;
-    const path = document.getElementById('audio-path').value.trim();
+    let path = document.getElementById('audio-path').value.trim();
     
     if (!path) {
-        alert('Bitte geben Sie einen Speicherort an.');
-        return;
+        path = getDefaultDownloadPath();
     }
     
     const button = document.getElementById('audio-download-btn');
@@ -320,8 +380,16 @@ function pollAudioStatus() {
             if (!response.ok) throw new Error('Status abrufen fehlgeschlagen');
             
             const status = await response.json();
+            
+            // Update overall progress bar
             updateAudioProgress(status.progress);
             updateAudioStatus(status.message);
+            
+            // Update current file progress bar
+            if (status.current_file_progress !== undefined) {
+                updateAudioCurrentProgress(status.current_file_progress);
+                updateAudioCurrentStatus(status.current_file_message || '');
+            }
             
             if (status.status === 'complete') {
                 clearInterval(interval);
@@ -329,6 +397,10 @@ function pollAudioStatus() {
                 button.disabled = false;
                 button.textContent = 'Download starten';
                 currentAudioTaskId = null;
+                
+                // Reset current file progress
+                updateAudioCurrentProgress(0);
+                updateAudioCurrentStatus('');
                 
                 alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
             }
@@ -346,4 +418,14 @@ function updateAudioProgress(progress) {
 
 function updateAudioStatus(message) {
     document.getElementById('audio-status').textContent = message;
+}
+
+function updateAudioCurrentProgress(progress) {
+    const fill = document.querySelector('#audio-current-progress-bar .progress-fill');
+    fill.style.width = `${progress}%`;
+    fill.textContent = `${Math.round(progress)}%`;
+}
+
+function updateAudioCurrentStatus(message) {
+    document.getElementById('audio-current-status').textContent = message;
 }

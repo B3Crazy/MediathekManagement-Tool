@@ -30,6 +30,38 @@ app.add_middleware(
 # In-memory storage for download tasks (in production, use a database)
 download_tasks: Dict[str, DownloadStatus] = {}
 
+# Helper function to resolve output paths
+def resolve_output_path(path: str) -> str:
+    """Resolve output path, converting relative paths to absolute"""
+    # If path is just "Downloads", use user's Downloads folder
+    if path == "Downloads" or path == "downloads":
+        home = Path.home()
+        downloads_path = home / "Downloads"
+        if not downloads_path.exists():
+            downloads_path.mkdir(parents=True, exist_ok=True)
+        return str(downloads_path)
+    
+    # Expand user home directory (~)
+    expanded_path = os.path.expanduser(path)
+    
+    # If it's not an absolute path, treat it as invalid for web frontend
+    # (to prevent creating folders in unexpected places)
+    if not os.path.isabs(expanded_path):
+        # For relative paths that aren't "Downloads", reject them
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Bitte geben Sie einen vollständigen Pfad ein (z.B. C:\\Users\\YourName\\Videos). Relativer Pfad '{path}' ist nicht erlaubt."
+        )
+    
+    # Create directory if it doesn't exist
+    if not os.path.exists(expanded_path):
+        try:
+            os.makedirs(expanded_path, exist_ok=True)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Kann Ordner nicht erstellen: {str(e)}")
+    
+    return expanded_path
+
 # Request/Response models
 class DownloadRequest(BaseModel):
     urls: List[HttpUrl]
@@ -47,6 +79,8 @@ class StatusResponse(BaseModel):
     current_file: int
     total_files: int
     message: str
+    current_file_progress: float
+    current_file_message: str
     failed_urls: List[str]
 
 class FormatCheckRequest(BaseModel):
@@ -72,12 +106,22 @@ async def download_video(request: DownloadRequest, background_tasks: BackgroundT
     if request.format not in ["mp4", "mkv"]:
         raise HTTPException(status_code=400, detail="Invalid video format. Use 'mp4' or 'mkv'")
     
-    # Validate output path
-    if not os.path.isdir(request.output_path):
+    # Resolve and validate output path
+    try:
+        output_path = resolve_output_path(request.output_path)
+        print(f"[VIDEO DOWNLOAD] Resolved path: {output_path}")  # Debug logging
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
+    
+    if not os.path.isdir(output_path):
         raise HTTPException(status_code=400, detail="Output path does not exist")
     
     # Convert HttpUrl objects to strings
     urls = [str(url) for url in request.urls]
+    print(f"[VIDEO DOWNLOAD] URLs: {urls}")  # Debug logging
+    print(f"[VIDEO DOWNLOAD] Format: {request.format}")  # Debug logging
     
     # Create download status
     status = DownloadStatus(
@@ -88,7 +132,7 @@ async def download_video(request: DownloadRequest, background_tasks: BackgroundT
     download_tasks[task_id] = status
     
     # Create downloader and start in background
-    downloader = VideoDownloader(urls, request.format, request.output_path, status)
+    downloader = VideoDownloader(urls, request.format, output_path, status)
     background_tasks.add_task(downloader.download_all)
     
     return DownloadResponse(
@@ -107,8 +151,15 @@ async def download_audio(request: DownloadRequest, background_tasks: BackgroundT
     if request.format not in ["mp3", "wav"]:
         raise HTTPException(status_code=400, detail="Invalid audio format. Use 'mp3' or 'wav'")
     
-    # Validate output path
-    if not os.path.isdir(request.output_path):
+    # Resolve and validate output path
+    try:
+        output_path = resolve_output_path(request.output_path)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
+    
+    if not os.path.isdir(output_path):
         raise HTTPException(status_code=400, detail="Output path does not exist")
     
     # Convert HttpUrl objects to strings
@@ -123,7 +174,7 @@ async def download_audio(request: DownloadRequest, background_tasks: BackgroundT
     download_tasks[task_id] = status
     
     # Create downloader and start in background
-    downloader = AudioDownloader(urls, request.format, request.output_path, status)
+    downloader = AudioDownloader(urls, request.format, output_path, status)
     background_tasks.add_task(downloader.download_all)
     
     return DownloadResponse(
@@ -148,6 +199,8 @@ async def get_status(task_id: str):
         current_file=status.current_file,
         total_files=status.total_files,
         message=status.message,
+        current_file_progress=status.current_file_progress,
+        current_file_message=status.current_file_message,
         failed_urls=status.failed_urls
     )
 

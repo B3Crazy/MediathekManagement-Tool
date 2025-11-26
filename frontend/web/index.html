@@ -36,8 +36,11 @@
 
             <div class="section">
                 <h2>Speicherort</h2>
-                <input type="text" id="video-path" value="Downloads" placeholder="Ausgabepfad" class="path-input">
-                <p class="hint">Hinweis: Pfad muss auf dem Server existieren</p>
+                <div class="path-input-group">
+                    <input type="text" id="video-path" placeholder="Downloads" class="path-input">
+                    <button onclick="selectVideoFolder()" class="btn-browse">✏️ Bearbeiten</button>
+                </div>
+                <p class="hint" id="video-path-hint">Standard: Downloads-Ordner (oder Pfad eingeben, z.B. C:\Users\IhrName\Videos)</p>
             </div>
 
             <div class="section">
@@ -59,10 +62,17 @@
             <div class="section">
                 <h2>Download-Status</h2>
                 <div class="progress-container">
+                    <label class="progress-label">Gesamtfortschritt:</label>
                     <div id="video-progress-bar" class="progress-bar">
                         <div class="progress-fill"></div>
                     </div>
                     <p id="video-status" class="status-text">Bereit zum Download</p>
+                    
+                    <label class="progress-label" style="margin-top: 15px;">Aktueller Download:</label>
+                    <div id="video-current-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="video-current-status" class="status-text"></p>
                 </div>
             </div>
 
@@ -87,8 +97,11 @@
 
             <div class="section">
                 <h2>Speicherort</h2>
-                <input type="text" id="audio-path" value="Downloads" placeholder="Ausgabepfad" class="path-input">
-                <p class="hint">Hinweis: Pfad muss auf dem Server existieren</p>
+                <div class="path-input-group">
+                    <input type="text" id="audio-path" placeholder="Downloads" class="path-input">
+                    <button onclick="selectAudioFolder()" class="btn-browse">✏️ Bearbeiten</button>
+                </div>
+                <p class="hint" id="audio-path-hint">Standard: Downloads-Ordner (oder Pfad eingeben, z.B. C:\Users\IhrName\Music)</p>
             </div>
 
             <div class="section">
@@ -110,10 +123,17 @@
             <div class="section">
                 <h2>Download-Status</h2>
                 <div class="progress-container">
+                    <label class="progress-label">Gesamtfortschritt:</label>
                     <div id="audio-progress-bar" class="progress-bar">
                         <div class="progress-fill"></div>
                     </div>
                     <p id="audio-status" class="status-text">Bereit zum Download</p>
+                    
+                    <label class="progress-label" style="margin-top: 15px;">Aktueller Download:</label>
+                    <div id="audio-current-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="audio-current-status" class="status-text"></p>
                 </div>
             </div>
 

@@ -37,8 +37,10 @@ class DownloadStatus:
     total_files: int
     current_file: int = 0
     progress: float = 0.0
+    current_file_progress: float = 0.0
     status: str = "pending"  # pending, downloading, complete, error
     message: str = ""
+    current_file_message: str = ""
     failed_urls: List[str] = field(default_factory=list)
 
 def check_ytdlp() -> bool:
@@ -151,6 +153,8 @@ class BaseDownloader:
             self.status.current_file = idx + 1
             self.status.progress = (idx / len(self.urls)) * 100
             self.status.message = f"Downloading {idx + 1} of {len(self.urls)}..."
+            self.status.current_file_progress = 0.0
+            self.status.current_file_message = ""
             
             success = False
             for attempt in range(1, max_retries + 1):
@@ -245,6 +249,20 @@ class VideoDownloader(BaseDownloader):
             line = line.strip()
             if line:
                 error_output.append(line)
+            
+            # Parse progress from yt-dlp output
+            if "[download]" in line and "%" in line:
+                try:
+                    parts = line.split()
+                    for part in parts:
+                        if "%" in part:
+                            percent_str = part.replace("%", "")
+                            percent = float(percent_str)
+                            self.status.current_file_progress = percent
+                            self.status.current_file_message = f"Download: {percent:.1f}%"
+                            break
+                except:
+                    pass
         
         process.wait(timeout=1800)
         
@@ -304,6 +322,20 @@ class AudioDownloader(BaseDownloader):
             line = line.strip()
             if line:
                 error_output.append(line)
+            
+            # Parse progress from yt-dlp output
+            if "[download]" in line and "%" in line:
+                try:
+                    parts = line.split()
+                    for part in parts:
+                        if "%" in part:
+                            percent_str = part.replace("%", "")
+                            percent = float(percent_str)
+                            self.status.current_file_progress = percent
+                            self.status.current_file_message = f"Download: {percent:.1f}%"
+                            break
+                except:
+                    pass
             
             # Capture destination
             if 'Destination:' in line:

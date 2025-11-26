@@ -129,12 +129,23 @@ class MediathekDesktopApp:
         lf_prog.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         lf_prog.columnconfigure(0, weight=1)
         
+        # Overall progress
+        ttk.Label(lf_prog, text="Gesamtfortschritt:").grid(row=0, column=0, sticky="w", pady=(0, 3))
         self.progress_var = tk.DoubleVar(value=0)
         self.progress_bar = ttk.Progressbar(lf_prog, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        self.progress_bar.grid(row=1, column=0, sticky="ew", pady=(0, 6))
         
         self.status_label = ttk.Label(lf_prog, text="Bereit zum Download")
-        self.status_label.grid(row=1, column=0, sticky="w")
+        self.status_label.grid(row=2, column=0, sticky="w", pady=(0, 10))
+        
+        # Current file progress
+        ttk.Label(lf_prog, text="Aktueller Download:").grid(row=3, column=0, sticky="w", pady=(0, 3))
+        self.current_file_progress_var = tk.DoubleVar(value=0)
+        self.current_file_progress_bar = ttk.Progressbar(lf_prog, variable=self.current_file_progress_var, maximum=100)
+        self.current_file_progress_bar.grid(row=4, column=0, sticky="ew", pady=(0, 6))
+        
+        self.current_file_status_label = ttk.Label(lf_prog, text="")
+        self.current_file_status_label.grid(row=5, column=0, sticky="w")
 
         # Download button
         self.download_button = ttk.Button(tab_yt, text="Download starten", command=self.start_download)
@@ -200,12 +211,23 @@ class MediathekDesktopApp:
         lf_audio_prog.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         lf_audio_prog.columnconfigure(0, weight=1)
         
+        # Overall progress
+        ttk.Label(lf_audio_prog, text="Gesamtfortschritt:").grid(row=0, column=0, sticky="w", pady=(0, 3))
         self.audio_progress_var = tk.DoubleVar(value=0)
         self.audio_progress_bar = ttk.Progressbar(lf_audio_prog, variable=self.audio_progress_var, maximum=100)
-        self.audio_progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        self.audio_progress_bar.grid(row=1, column=0, sticky="ew", pady=(0, 6))
         
         self.audio_status_label = ttk.Label(lf_audio_prog, text="Bereit zum Download")
-        self.audio_status_label.grid(row=1, column=0, sticky="w")
+        self.audio_status_label.grid(row=2, column=0, sticky="w", pady=(0, 10))
+        
+        # Current file progress
+        ttk.Label(lf_audio_prog, text="Aktueller Download:").grid(row=3, column=0, sticky="w", pady=(0, 3))
+        self.audio_current_file_progress_var = tk.DoubleVar(value=0)
+        self.audio_current_file_progress_bar = ttk.Progressbar(lf_audio_prog, variable=self.audio_current_file_progress_var, maximum=100)
+        self.audio_current_file_progress_bar.grid(row=4, column=0, sticky="ew", pady=(0, 6))
+        
+        self.audio_current_file_status_label = ttk.Label(lf_audio_prog, text="")
+        self.audio_current_file_status_label.grid(row=5, column=0, sticky="w")
 
         # Download button
         self.audio_download_button = ttk.Button(tab_audio, text="Download starten", command=self.start_audio_download)
@@ -446,9 +468,20 @@ class MediathekDesktopApp:
                     self.progress_var.set(status["progress"])
                     self.status_label.config(text=status["message"])
                     
+                    # Update current file progress
+                    current_file_progress = status.get("current_file_progress", 0)
+                    self.current_file_progress_var.set(current_file_progress)
+                    current_file_msg = status.get("current_file_message", "")
+                    if current_file_msg:
+                        self.current_file_status_label.config(text=current_file_msg)
+                    else:
+                        self.current_file_status_label.config(text="")
+                    
                     if status["status"] == "complete":
                         self.download_button.config(state="normal", text="Download starten")
                         self.current_task_id = None
+                        self.current_file_progress_var.set(0)
+                        self.current_file_status_label.config(text="")
                         failed = len(status['failed_urls'])
                         if failed > 0:
                             self.status_label.config(text=f"✓ Download abgeschlossen! ⚠ {failed} fehlgeschlagen")
@@ -469,9 +502,20 @@ class MediathekDesktopApp:
                     self.audio_progress_var.set(status["progress"])
                     self.audio_status_label.config(text=status["message"])
                     
+                    # Update current file progress
+                    current_file_progress = status.get("current_file_progress", 0)
+                    self.audio_current_file_progress_var.set(current_file_progress)
+                    current_file_msg = status.get("current_file_message", "")
+                    if current_file_msg:
+                        self.audio_current_file_status_label.config(text=current_file_msg)
+                    else:
+                        self.audio_current_file_status_label.config(text="")
+                    
                     if status["status"] == "complete":
                         self.audio_download_button.config(state="normal", text="Download starten")
                         self.current_audio_task_id = None
+                        self.audio_current_file_progress_var.set(0)
+                        self.audio_current_file_status_label.config(text="")
                         failed = len(status['failed_urls'])
                         if failed > 0:
                             self.audio_status_label.config(text=f"✓ Download abgeschlossen! ⚠ {failed} fehlgeschlagen")

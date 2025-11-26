@@ -30,7 +30,28 @@ app.add_middleware(
 # In-memory storage for download tasks (in production, use a database)
 download_tasks: Dict[str, DownloadStatus] = {}
 
-# Helper function to resolve output paths
+# Helper function to create timestamped download folder (for web app only)
+def create_timestamped_folder(file_count: int) -> str:
+    """Create a timestamped folder in user's Downloads directory"""
+    from datetime import datetime
+    
+    # Get user's Downloads folder
+    home = Path.home()
+    downloads_path = home / "Downloads"
+    if not downloads_path.exists():
+        downloads_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create folder name: YYYYMMDD_HHMMSS_filecount
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder_name = f"{timestamp}_{file_count}"
+    
+    # Create the subfolder
+    output_path = downloads_path / folder_name
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    return str(output_path)
+
+# Helper function to resolve output paths (for desktop app)
 def resolve_output_path(path: str) -> str:
     """Resolve output path, converting relative paths to absolute"""
     # If path is just "Downloads", use user's Downloads folder
@@ -44,14 +65,9 @@ def resolve_output_path(path: str) -> str:
     # Expand user home directory (~)
     expanded_path = os.path.expanduser(path)
     
-    # If it's not an absolute path, treat it as invalid for web frontend
-    # (to prevent creating folders in unexpected places)
+    # Convert to absolute path
     if not os.path.isabs(expanded_path):
-        # For relative paths that aren't "Downloads", reject them
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Bitte geben Sie einen vollständigen Pfad ein (z.B. C:\\Users\\YourName\\Videos). Relativer Pfad '{path}' ist nicht erlaubt."
-        )
+        expanded_path = os.path.abspath(expanded_path)
     
     # Create directory if it doesn't exist
     if not os.path.exists(expanded_path):
@@ -67,10 +83,12 @@ class DownloadRequest(BaseModel):
     urls: List[HttpUrl]
     format: str  # mp4, mkv for video; mp3, wav for audio
     output_path: str
+    use_timestamped_folder: Optional[bool] = False  # True for web app, False for desktop app
 
 class DownloadResponse(BaseModel):
     task_id: str
     message: str
+    output_folder: Optional[str] = None  # Return the actual folder path
 
 class StatusResponse(BaseModel):
     task_id: str
@@ -106,20 +124,25 @@ async def download_video(request: DownloadRequest, background_tasks: BackgroundT
     if request.format not in ["mp4", "mkv"]:
         raise HTTPException(status_code=400, detail="Invalid video format. Use 'mp4' or 'mkv'")
     
-    # Resolve and validate output path
-    try:
-        output_path = resolve_output_path(request.output_path)
-        print(f"[VIDEO DOWNLOAD] Resolved path: {output_path}")  # Debug logging
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
-    
-    if not os.path.isdir(output_path):
-        raise HTTPException(status_code=400, detail="Output path does not exist")
-    
     # Convert HttpUrl objects to strings
     urls = [str(url) for url in request.urls]
+    
+    # Determine output path based on request type
+    if request.use_timestamped_folder:
+        # Web app: create timestamped folder in Downloads
+        try:
+            output_path = create_timestamped_folder(len(urls))
+            print(f"[VIDEO DOWNLOAD - WEB] Created folder: {output_path}")  # Debug logging
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Fehler beim Erstellen des Download-Ordners: {str(e)}")
+    else:
+        # Desktop app: use provided path
+        try:
+            output_path = resolve_output_path(request.output_path)
+            print(f"[VIDEO DOWNLOAD - DESKTOP] Resolved path: {output_path}")  # Debug logging
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
+    
     print(f"[VIDEO DOWNLOAD] URLs: {urls}")  # Debug logging
     print(f"[VIDEO DOWNLOAD] Format: {request.format}")  # Debug logging
     
@@ -137,7 +160,8 @@ async def download_video(request: DownloadRequest, background_tasks: BackgroundT
     
     return DownloadResponse(
         task_id=task_id,
-        message=f"Video download task started with {len(urls)} URLs"
+        message=f"Video download task started with {len(urls)} URLs",
+        output_folder=output_path
     )
 
 @app.post("/api/download/audio", response_model=DownloadResponse)
@@ -151,19 +175,27 @@ async def download_audio(request: DownloadRequest, background_tasks: BackgroundT
     if request.format not in ["mp3", "wav"]:
         raise HTTPException(status_code=400, detail="Invalid audio format. Use 'mp3' or 'wav'")
     
-    # Resolve and validate output path
-    try:
-        output_path = resolve_output_path(request.output_path)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
-    
-    if not os.path.isdir(output_path):
-        raise HTTPException(status_code=400, detail="Output path does not exist")
-    
     # Convert HttpUrl objects to strings
     urls = [str(url) for url in request.urls]
+    
+    # Determine output path based on request type
+    if request.use_timestamped_folder:
+        # Web app: create timestamped folder in Downloads
+        try:
+            output_path = create_timestamped_folder(len(urls))
+            print(f"[AUDIO DOWNLOAD - WEB] Created folder: {output_path}")  # Debug logging
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Fehler beim Erstellen des Download-Ordners: {str(e)}")
+    else:
+        # Desktop app: use provided path
+        try:
+            output_path = resolve_output_path(request.output_path)
+            print(f"[AUDIO DOWNLOAD - DESKTOP] Resolved path: {output_path}")  # Debug logging
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid output path: {str(e)}")
+    
+    print(f"[AUDIO DOWNLOAD] URLs: {urls}")  # Debug logging
+    print(f"[AUDIO DOWNLOAD] Format: {request.format}")  # Debug logging
     
     # Create download status
     status = DownloadStatus(
@@ -179,7 +211,8 @@ async def download_audio(request: DownloadRequest, background_tasks: BackgroundT
     
     return DownloadResponse(
         task_id=task_id,
-        message=f"Audio download task started with {len(urls)} URLs"
+        message=f"Audio download task started with {len(urls)} URLs",
+        output_folder=output_path
     )
 
 @app.get("/api/status/{task_id}", response_model=StatusResponse)

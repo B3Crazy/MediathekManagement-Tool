@@ -1,1 +1,14 @@
+# Root requirements - install all dependencies for all components
+# For specific components, see:
+# - backend/requirements.txt
+# - frontend/desktop/requirements.txt
+
+# Backend dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
 yt-dlp>=2023.7.6
+python-multipart>=0.0.6
+
+# Desktop frontend dependencies
+requests>=2.31.0

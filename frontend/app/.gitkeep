@@ -1,0 +1,8 @@
+# Example React Native setup script
+# This is a placeholder for future React Native implementation
+
+echo "React Native mobile app implementation"
+echo "To get started:"
+echo "1. Install React Native CLI: npm install -g react-native-cli"
+echo "2. Create new project: npx react-native init MediathekApp"
+echo "3. Configure API endpoint to connect to backend"

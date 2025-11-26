@@ -1,390 +1,307 @@
 # MediathekManagement-Tool
 
-[![Python Version](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 
-Eine umfassende Desktop-Anwendung zum Herunterladen von YouTube-Videos und -Audios. Die Anwendung bietet eine benutzerfreundliche grafische Oberfläche mit Echtzeit-Fortschrittsanzeige. Bis auf den Speicherort werden nötige Einstellung automatisch vorgenommen.
+A comprehensive YouTube video and audio downloader with multiple frontend options, all powered by a unified Python backend API.
 
-## Inhaltsverzeichnis
+> **🎯 New Architecture**: This project now features a client-server architecture with a FastAPI backend and multiple frontend implementations (Desktop, Web, Mobile).
 
-- [Funktionsübersicht](#funktionsübersicht)
-- [Systemanforderungen](#systemanforderungen)
-- [Installation](#installation)
-  - [Schnellstart](#schnellstart)
-  - [Manuelle Installation](#manuelle-installation)
-  - [Externe Abhängigkeiten](#externe-abhängigkeiten)
-- [Verwendung](#verwendung)
-  - [YouTube-Video-Download](#youtube-video-download)
-  - [YouTube-Audio-Download](#youtube-audio-download)
-- [Konfiguration](#konfiguration)
-- [Funktionen im Detail](#funktionen-im-detail)
-- [Fehlerbehebung](#fehlerbehebung)
-- [Häufig gestellte Fragen (FAQ)](#häufig-gestellte-fragen-faq)
-- [Bekannte Einschränkungen](#bekannte-einschränkungen)
-- [Roadmap](#roadmap)
-- [Mitwirkende](#mitwirkende)
-- [Lizenz](#lizenz)
+## 🎯 Architecture
 
-## Funktionsübersicht
+This project follows a **client-server architecture** where:
+- **Backend**: FastAPI server handling all download logic, validation, and processing
+- **Frontends**: Multiple UI implementations (Desktop, Web, Mobile) that communicate with the backend
 
-### YouTube-Video-Download
-- **Mehrere Videos gleichzeitig**: Erstellen Sie Warteschlangen mit beliebig vielen YouTube-URLs
-- **Hohe Qualität**: Automatischer Download in höchstmöglicher Qualität (bis zu 8K, falls verfügbar)
-- **Formatwahl**: Unterstützung für MP4 und MKV Container-Formate
-- **Intelligente Formatauswahl**: Bevorzugt optimale Video-/Audio-Streams basierend auf Verfügbarkeit
-- **Metadata-Einbettung**: Automatisches Einbetten von Thumbnails und Metadaten
-- **Fehlertoleranz**: Automatische Wiederholungsversuche (bis zu 10x) bei fehlgeschlagenen Downloads
-- **Fortschrittsanzeige**: Echtzeit-Fortschritt sowohl für einzelne Dateien als auch für die gesamte Warteschlange
+```
+MediathekManagement-Tool/
+├── backend/                 # Python FastAPI backend
+│   ├── api.py              # REST API endpoints
+│   ├── downloader.py       # Download logic
+│   ├── logging/            # Logs and failed downloads
+│   └── start_server.py     # Server startup script
+│
+├── frontend/
+│   ├── desktop/            # Tkinter desktop application
+│   ├── web/                # HTML/CSS/JS web application
+│   └── app/                # Mobile app (future implementations)
+│
+└── documentation/          # Project documentation
+```
 
-### YouTube-Audio-Download
-- **Audio-Extraktion**: Extrahiert hochwertige Audiospuren von YouTube-Videos
-- **Mehrere Formate**: Unterstützung für MP3 und WAV
-- **Beste Qualität**: Automatische Auswahl der höchsten verfügbaren Audioqualität
-- **Metadata**: Einbettung von Cover-Art, Titel, Künstler und Jahr (außer bei WAV)
-- **Intelligente Metadaten**: Automatische Übernahme des YouTube-Kanal-Namens als Artist
-- **Detaillierte Fehlerprotokolle**: Separate Logdateien für Audio-Downloads
+## Table of Contents
 
-## Systemanforderungen
+- [Quick Start](#-quick-start)
+- [Features](#-features)
+- [System Requirements](#️-system-requirements)
+- [Installation](#-installation)
+- [API Documentation](#-api-endpoints)
+- [Configuration](#-configuration)
+- [Troubleshooting](#-troubleshooting)
+- [Development](#-development)
+- [Future Enhancements](#-future-enhancements)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-### Betriebssystem
-- **Windows 7/8/10/11** (64-bit empfohlen)
+## 🚀 Quick Start
 
-### Hardware
-- **Prozessor**: Dual-Core CPU oder besser
-- **Arbeitsspeicher**: Mindestens 2 GB RAM (4 GB empfohlen)
-- **Festplattenspeicher**: 
-  - 100 MB für die Anwendung
-  - Ausreichend Speicherplatz für heruntergeladene Medien (variabel)
-- **DVD-Laufwerk**: Erforderlich für DVD-Ripping-Funktion
+### 1. Install Dependencies
 
-### Software
-- **Python**: Version 3.7 oder höher
-- **pip**: Python-Paketmanager (normalerweise mit Python installiert)
+```bash
+# Install all dependencies (backend + desktop frontend)
+pip install -r requirements.txt
+```
 
-### Optionale Komponenten
-- **FFmpeg**: Für erweiterte Video-/Audio-Verarbeitung (automatisch erkannt)
-- **MakeMKV**: Für DVD-Ripping-Funktionalität
-- **MKVToolNix**: Für erweiterte MKV-Merge-Optionen (optional)
+### 2. Start the Backend Server
 
-## Installation
+```bash
+# Windows
+backend\start_backend.bat
 
-### Schnellstart
+# Or manually
+cd backend
+python start_server.py
+```
 
-1. **Repository klonen oder herunterladen**:
-   ```bash
-   git clone https://github.com/B3Crazy/MediathekManagement-Tool.git
-   cd MediathekManagement-Tool
-   ```
+Backend will be available at: **http://localhost:8000**
 
-2. **Installation starten**:
-   
-   Doppelklicken Sie auf `start.bat` oder führen Sie in der Eingabeaufforderung aus:
-   ```bash
-   start.bat
-   ```
-   
-   Das Skript installiert automatisch alle erforderlichen Python-Abhängigkeiten und startet die Anwendung.
+### 3. Start a Frontend
 
-### Manuelle Installation
+#### Desktop Frontend (Tkinter)
+```bash
+# Windows
+frontend\desktop\start_desktop.bat
 
-Falls Sie die manuelle Installation bevorzugen:
+# Or manually
+cd frontend/desktop
+python mediathek_desktop.py
+```
 
-1. **Python-Abhängigkeiten installieren**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+#### Web Frontend (Browser)
+```bash
+# Windows
+frontend\web\start_web.bat
 
-2. **Anwendung starten**:
-   ```bash
-   python youtube_downloader.py
-   ```
+# Then open http://localhost:8080 in your browser
+```
 
-### Externe Abhängigkeiten
+## 📦 Features
 
-#### FFmpeg (empfohlen)
+### Backend (API)
+- ✅ RESTful API with FastAPI
+- ✅ Video downloads (MP4, MKV)
+- ✅ Audio downloads (MP3, WAV)
+- ✅ High-quality downloads (up to 4K/8K with ffmpeg)
+- ✅ Retry logic (up to 10 attempts)
+- ✅ Progress tracking
+- ✅ Failed download logging (CSV)
+- ✅ Metadata embedding
+- ✅ Thumbnail embedding
+- ✅ Background task processing
 
-FFmpeg ermöglicht erweiterte Funktionen wie das Zusammenführen von separaten Video- und Audio-Streams (für 4K/8K-Videos).
+### Desktop Frontend (Tkinter)
+- ✅ Native desktop GUI
+- ✅ Two tabs: Video & Audio
+- ✅ URL list management
+- ✅ Real-time progress tracking
+- ✅ Format selection
+- ✅ Custom output path
 
-**Installation**:
-1. Laden Sie FFmpeg von [ffmpeg.org](https://ffmpeg.org/download.html) herunter
-2. Entpacken Sie das Archiv
-3. Fügen Sie den `bin`-Ordner zum System-PATH hinzu
-4. Überprüfen Sie die Installation: `ffmpeg -version`
+### Web Frontend (HTML/JS)
+- ✅ Modern, responsive design
+- ✅ No additional dependencies
+- ✅ Works in any browser
+- ✅ Real-time progress updates
+- ✅ Backend status indicator
+- ✅ Clean, intuitive UI
 
-**Alternative**: Chocolatey-Installation
+### Mobile Frontend (Planned)
+- 🔜 React Native (iOS & Android)
+- 🔜 Flutter (Cross-platform)
+- 🔜 Progressive Web App (PWA)
+
+## 🛠️ System Requirements
+
+### Required
+- **Python 3.8+**
+- **yt-dlp** (will be installed automatically)
+
+### Optional (Recommended)
+- **ffmpeg** (for high-quality video downloads and format conversion)
+  - Without ffmpeg: Limited to progressive downloads (max ~720p for most videos)
+  - With ffmpeg: Full 4K/8K support with separate audio/video stream merging
+
+### Installing ffmpeg
+
+**Windows:**
 ```bash
 choco install ffmpeg
 ```
+Or download from https://ffmpeg.org/download.html
+
+**macOS:**
+```bash
+brew install ffmpeg
+```
+
+**Linux:**
+```bash
+sudo apt install ffmpeg  # Debian/Ubuntu
+sudo yum install ffmpeg  # RHEL/CentOS
+```
 
-## Verwendung
+## 📥 Installation
+
+### Quick Install
 
-### YouTube-Video-Download
+```bash
+# Clone repository
+git clone https://github.com/B3Crazy/MediathekManagement-Tool.git
+cd MediathekManagement-Tool
+
+# Install all dependencies
+pip install -r requirements.txt
 
-1. **Starten Sie die Anwendung** und wechseln Sie zum Tab **"YouTube → Video"**
+# Or install individually
+pip install -r backend/requirements.txt
+pip install -r frontend/desktop/requirements.txt
+```
+
+### Start Everything
+
+**Windows - Quick start (Backend + Desktop):**
+```bash
+start.bat
+```
+
+This will start both the backend server and desktop frontend automatically.
+
+## 📡 API Endpoints
 
-2. **Format auswählen**:
-   - **MP4**: Empfohlen für beste Kompatibilität
-   - **MKV**: Unterstützt erweiterte Features und höhere Qualität
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | API information |
+| `/health` | GET | Health check |
+| `/api/download/video` | POST | Start video download |
+| `/api/download/audio` | POST | Start audio download |
+| `/api/status/{task_id}` | GET | Get download status |
+| `/api/formats` | POST | Check available formats |
+| `/api/tools/check` | GET | Check yt-dlp & ffmpeg |
+
+Full API documentation available at **http://localhost:8000/docs** (Swagger UI)
+
+## 📝 Configuration
+
+### Backend Configuration
+- **Host**: `0.0.0.0` (all interfaces)
+- **Port**: `8000`
+- **CORS**: Enabled for all origins (configure in production)
 
-3. **Speicherort festlegen**:
-   - Klicken Sie auf "Durchsuchen", um den Zielordner auszuwählen
-   - Standard: `Downloads`-Ordner des Benutzers
+### Frontend Configuration
+Both frontends connect to: **http://localhost:8000**
 
-4. **URLs hinzufügen**:
-   - Fügen Sie YouTube-URLs in das Eingabefeld ein
-   - Klicken Sie auf "Zur Liste hinzufügen"
-   - Wiederholen Sie den Vorgang für mehrere Videos
-   - Unterstützte URL-Formate:
-     - `https://www.youtube.com/watch?v=...`
-     - `https://youtu.be/...`
-     - `https://m.youtube.com/watch?v=...`
+To change the backend URL:
+- **Desktop**: Edit `frontend/desktop/mediathek_desktop.py` (line 13: `API_URL`)
+- **Web**: Edit `frontend/web/app.js` (line 2: `API_URL`)
 
-5. **Optional - Formate prüfen**:
-   - Wählen Sie eine URL aus der Liste
-   - Klicken Sie auf "Formate prüfen", um verfügbare Qualitätsstufen anzuzeigen
+### Output Structure
 
-6. **Download starten**:
-   - Klicken Sie auf "Download starten"
-   - Beobachten Sie den Fortschritt in den Fortschrittsbalken:
-     - **Oberer Balken**: Gesamtfortschritt aller Videos
-     - **Unterer Balken**: Fortschritt der aktuellen Datei
+```
+{output_path}/
+├── {video_title}.mp4
+├── {video_title}.mkv
+├── {audio_title}.mp3
+└── {audio_title}.wav
+```
 
-7. **Ergebnis**:
-   - Videos werden im ausgewählten Ordner gespeichert
-   - Dateiname: Original-YouTube-Titel
-   - Bei Fehlern wird eine `video_error.log` erstellt
+Logs and failed downloads:
+```
+backend/logging/
+├── downloader.log          # All download activity
+└── failed_downloads.csv    # Failed downloads with timestamps
+```
 
-### YouTube-Audio-Download
+## 🐛 Troubleshooting
 
-1. **Wechseln Sie zum Tab** **"YouTube → Audio"**
+### Backend won't start
+- Check if port 8000 is already in use
+- Verify Python 3.8+ is installed: `python --version`
+- Install dependencies: `pip install -r backend/requirements.txt`
 
-2. **Audio-Format wählen**:
-   - **MP3**: Komprimiert, kleinere Dateigröße, mit Metadaten
-   - **WAV**: Unkomprimiert, höchste Qualität, größere Dateien
+### Frontend can't connect to backend
+- Ensure backend is running on http://localhost:8000
+- Check backend status: http://localhost:8000/health
+- Verify CORS settings in `backend/api.py`
 
-3. **Speicherort und URLs hinzufügen** (wie bei Video-Downloads)
+### Downloads fail
+- Check if yt-dlp is installed: `yt-dlp --version`
+- Install ffmpeg for better quality support
+- Check `backend/logging/failed_downloads.csv` for details
+- Review `backend/logging/downloader.log`
 
-4. **Download starten**:
-   - Die Anwendung lädt die beste verfügbare Audiospur herunter
-   - Bei mp3 Automatische Einbettung von:
-     - Cover-Art (Thumbnail)
-     - Titel
-     - Artist (YouTube-Kanal-Name)
-     - Erscheinungsjahr
+### Web frontend CORS issues
+- Backend must be running first
+- Check browser console for errors
+- Verify `allow_origins` in `backend/api.py`
 
-5. **Fehlerprotokoll**:
-   - Bei Problemen wird `audio_error.log` im Zielordner erstellt
-   - Enthält detaillierte Informationen zu fehlgeschlagenen Downloads
+## 🔧 Development
 
-## Konfiguration
+### Adding a New Frontend
 
-### Format-Strings und Qualität
+1. Create a new directory in `frontend/`
+2. Implement UI that calls the backend API endpoints
+3. Use the same API contract as existing frontends
+4. Document setup in a README.md
 
-Die Anwendung verwendet intelligente Format-Strings für optimale Qualität:
+### Extending the Backend
 
-**Mit FFmpeg** (ermöglicht 4K/8K):
-- **MP4**: Bevorzugt MP4-Streams, fällt auf beste Qualität zurück
-- **MKV**: Lädt höchstmögliche Qualität (4K/8K wenn verfügbar)
+1. Add new endpoints in `backend/api.py`
+2. Implement logic in `backend/downloader.py` or new modules
+3. Update API documentation
+4. Test with existing frontends
 
-**Ohne FFmpeg**:
-- Nur progressive Downloads (Video+Audio in einer Datei)
-- Mindestens 720p, wenn verfügbar
+## 🔮 Future Enhancements
 
-### Cache-Verzeichnis
+- [ ] Database integration for task persistence
+- [ ] User authentication and multi-user support
+- [ ] Download queue management
+- [ ] Playlist support
+- [ ] Subtitle download options
+- [ ] Video quality selection
+- [ ] Mobile app implementations (React Native, Flutter)
+- [ ] Docker containerization
+- [ ] Cloud deployment guides
 
-- YouTube-Downloads verwenden ein temporäres Cache-Verzeichnis
-- Pfad: `%TEMP%\yt-dlp-cache`
-- Wird automatisch erstellt und verwaltet
-- Speichert Thumbnails und temporäre Daten
+## 🤝 Contributing
 
-### Wiederholungsversuche
+Contributions are welcome! Please:
 
-Bei fehlgeschlagenen Downloads:
-- **Automatische Wiederholungen**: Bis zu 10 Versuche pro Video/Audio
-- **Wartezeit**: 2 Sekunden zwischen Versuchen
-- **Timeout**: 30 Minuten pro Download
-- **Detaillierte Logs**: Die letzten 5-10 Fehlerzeilen werden protokolliert
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/YourFeature`
+3. Make your changes
+4. Test with all frontends
+5. Commit: `git commit -am 'Add new feature'`
+6. Push: `git push origin feature/YourFeature`
+7. Submit a pull request
 
-## Funktionen im Detail
+### Guidelines
+- Follow PEP 8 style for Python code
+- Add docstrings for new functions
+- Test your changes thoroughly
+- Update documentation as needed
 
-### Intelligente URL-Verarbeitung
+## 📄 License
 
-- **Duplikat-Erkennung**: Verhindert mehrfaches Hinzufügen derselben URL
-- **Timeskip-Entfernung**: Entfernt automatisch `&t=` und `?t=` Parameter
-- **URL-Validierung**: Prüft auf gültige YouTube-Domains
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Thumbnail und Metadata
+## ⚠️ Disclaimer
 
-**Video-Downloads (MP4)**:
-- Cover-Art: Höchstauflösendes YouTube-Thumbnail
-- Artist: YouTube-Kanal-Name (ohne @-Präfix)
-- Titel: Original-Video-Titel
-- Jahr: Upload-Jahr
-- Album: Optional (nicht standardmäßig gesetzt)
-
-**Video-Downloads (MKV)**
-- Keine Metadata-Einbettung
-- Thumbnail-Dateien werden automatisch entfernt
-
-**Audio-Downloads (MP3)**:
-- Cover-Art: Höchstauflösendes YouTube-Thumbnail
-- Artist: YouTube-Kanal-Name (ohne @-Präfix)
-- Titel: Original-Video-Titel
-- Jahr: Upload-Jahr
-- Album: Optional (nicht standardmäßig gesetzt)
-
-**Audio-Downloads (WAV)**:
-- Keine Metadata-Einbettung (WAV unterstützt keine Tags)
-- Thumbnail-Dateien werden automatisch entfernt
-
-### Fortschrittsanzeige
-
-Die Anwendung bietet mehrere Fortschrittsebenen:
-
-1. **Gesamt-Fortschritt**: Zeigt, wie viele Videos/Audios bereits verarbeitet wurden
-2. **Datei-Fortschritt**: Zeigt den Download-Fortschritt der aktuellen Datei
-3. **Status-Labels**: Textuelle Beschreibung des aktuellen Schritts:
-   - "Download: X%"
-   - "Extrahiere Audio..."
-   - "Bette Thumbnail ein..."
-   - "Bette Metadaten ein..."
-
-## Fehlerbehebung
-
-### yt-dlp nicht gefunden
-
-**Problem**: Fehlermeldung beim Start oder Download
-
-**Lösung**:
-1. Die Anwendung bietet automatische Installation an
-2. Manuelle Installation: `pip install -U yt-dlp`
-3. Überprüfung: `yt-dlp --version`
-
-### FFmpeg nicht erkannt
-
-**Problem**: Nur niedrige Qualität oder keine 4K/8K-Downloads
-
-**Lösung**:
-1. FFmpeg installieren (siehe [Externe Abhängigkeiten](#externe-abhängigkeiten))
-2. Überprüfen Sie den PATH: `ffmpeg -version`
-3. Starten Sie die Anwendung neu
-
-### Download schlägt wiederholt fehl
-
-**Problem**: Download bricht nach 10 Versuchen ab
-
-**Mögliche Ursachen und Lösungen**:
-1. **Netzwerkprobleme**:
-   - Überprüfen Sie Ihre Internetverbindung
-   - Versuchen Sie es später erneut
-   
-2. **Video nicht verfügbar**:
-   - Prüfen Sie, ob das Video noch auf YouTube existiert
-   - Prüfen Sie regionale Beschränkungen
-   
-3. **yt-dlp veraltet**:
-   ```bash
-   pip install -U yt-dlp
-   ```
-
-4. **Fehlerprotokoll prüfen**:
-   - Öffnen Sie `video_error.log` oder `audio_error.log`
-   - Suchen Sie nach spezifischen Fehlermeldungen
-
-### Thumbnail-Einbettung schlägt fehl
-
-**Problem**: Videos/Audios haben kein eingebettetes Cover
-
-**Lösung**:
-- Stellen Sie sicher, dass FFmpeg installiert ist
-- Bei Audio: WAV unterstützt keine Thumbnails (verwenden Sie MP3)
-
-## Häufig gestellte Fragen (FAQ)
-
-### Welche maximale Videoqualität wird unterstützt?
-
-Mit FFmpeg: Bis zu 8K (7680p), falls vom Video unterstützt
-Ohne FFmpeg: Maximal die höchste verfügbare progressive Qualität (oft 1080p)
-
-### Kann ich Playlists herunterladen?
-
-Aktuell: Nein. Die Anwendung nutzt `--no-playlist` und lädt nur einzelne Videos.
-Workaround: Fügen Sie jede Video-URL einzeln hinzu.
-
-### Werden Untertitel heruntergeladen?
-
-Nein. Untertitel werden bewusst nicht heruntergeladen, um Dateigröße und Komplexität zu reduzieren.
-
-### Kann ich Downloads pausieren?
-
-Nicht direkt. Sie können die Anwendung schließen (Warnung erscheint) und später neu starten. Bereits heruntergeladene Videos bleiben erhalten.
-
-### Wo werden Fehlerprotokolle gespeichert?
-
-- Video: `video_error.log` im Video-Zielordner
-- Audio: `audio_error.log` im Audio-Zielordner
-- Protokolle werden bei jedem neuen Download-Durchlauf zurückgesetzt
-
-### Wie funktioniert die Artist-Extraktion bei Audio?
-
-Die Anwendung nutzt den YouTube-Kanal-Namen (nicht den Handle):
-- `--parse-metadata "%(channel,uploader)s:%(meta_artist)s"`
-- Entfernt automatisch führende `@`-Zeichen
-
-### Warum haben WAV-Dateien keine Metadaten?
-
-WAV ist ein PCM-basiertes Format ohne Standard-Metadata-Container. Für Metadaten verwenden Sie MP3 oder M4A.
-
-## Bekannte Einschränkungen
-
-1. **Playlists**: Keine native Playlist-Unterstützung
-2. **Untertitel**: Werden nicht heruntergeladen
-3. **Live-Streams**: Möglicherweise nicht vollständig unterstützt
-4. **Sehr lange Videos**: Können Timeouts verursachen (30-Minuten-Limit)
-5. **DRM-geschützte Inhalte**: Nicht unterstützt (YouTube Premium-exklusive Inhalte)
-6. **WAV-Metadaten**: Technisch nicht möglich
-
-## Roadmap
-
-Geplante Features für zukünftige Versionen:
-
-- [ ] Playlist-Unterstützung
-- [ ] Untertitel-Download (optional)
-- [ ] Download-Geschwindigkeitsanzeige
-- [ ] Parallel-Downloads
-- [ ] Integration mit mehr Audio-Formaten (FLAC, OPUS)
-- [ ] Kommandozeilen-Modus
-- [ ] Übersetzungen (Englisch, weitere Sprachen)
-- [ ] Linux unterstützung
-- [ ] Web implementation
-
-## Mitwirkende
-
-Beiträge sind willkommen! 
-
-### So können Sie beitragen:
-
-1. **Forken Sie das Repository**
-2. **Erstellen Sie einen Feature-Branch**: `git checkout -b feature/NeuesFunktion`
-3. **Committen Sie Ihre Änderungen**: `git commit -am 'Füge neue Funktion hinzu'`
-4. **Pushen Sie den Branch**: `git push origin feature/NeuesFunktion`
-5. **Erstellen Sie einen Pull Request**
-
-### Richtlinien:
-- Folgen Sie PEP 8-Stil für Python-Code
-- Fügen Sie Docstrings für neue Funktionen hinzu
-- Testen Sie Ihre Änderungen gründlich
-- Aktualisieren Sie die README bei Bedarf
-
-## Lizenz
-
-Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe die [LICENSE](LICENSE)-Datei für Details.
+This tool is for personal use only. Please respect copyright laws and YouTube's Terms of Service. Only download content you have permission to download.
 
 ---
 
-**Hinweis**: Diese Software dient ausschließlich zu privaten, nicht-kommerziellen Zwecken. Beachten Sie die Nutzungsbedingungen von YouTube und respektieren Sie Urheberrechte. Der Download von urheberrechtlich geschützten Inhalten ohne Erlaubnis ist illegal.
+**Developed with ❤️ for the community**
 
-**Entwickelt mit ❤️ für die Community**
-
-Wenn Ihnen dieses Projekt gefällt, geben Sie ihm einen ⭐ auf GitHub!
+If you find this project helpful, give it a ⭐ on GitHub!

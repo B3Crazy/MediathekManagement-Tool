@@ -1,0 +1,6 @@
+# Logging directory for backend
+# This file ensures the directory is tracked by git
+
+## Files in this directory:
+- downloader.log - All download activity and errors
+- failed_downloads.csv - CSV file tracking all failed downloads with timestamps

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediathekManagement-Tool - Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📺 MediathekManagement-Tool</h1>
+            <p class="subtitle">YouTube Video & Audio Downloader</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('video')">Video Download</button>
+            <button class="tab-button" onclick="switchTab('audio')">Audio Download</button>
+        </div>
+
+        <!-- Video Tab -->
+        <div id="video-tab" class="tab-content active">
+            <div class="section">
+                <h2>Video Format</h2>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="video-format" value="mp4" checked>
+                        MP4
+                    </label>
+                    <label>
+                        <input type="radio" name="video-format" value="mkv">
+                        MKV
+                    </label>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Speicherort</h2>
+                <p class="hint">📥 Downloads werden automatisch in einem Ordner mit Zeitstempel gespeichert<br>
+                   Format: <code>YYYYMMDD_HHMMSS_Anzahl</code> (z.B. <code>20251126_143052_3</code>)<br>
+                   Ort: <strong>Downloads-Ordner</strong></p>
+            </div>
+
+            <div class="section">
+                <h2>YouTube URLs hinzufügen</h2>
+                <div class="url-input-group">
+                    <input type="text" id="video-url-input" placeholder="https://www.youtube.com/watch?v=..." class="url-input">
+                    <button onclick="addVideoUrl()" class="btn-primary">Hinzufügen</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Download-Liste</h2>
+                <ul id="video-url-list" class="url-list"></ul>
+                <div class="button-group">
+                    <button onclick="clearVideoUrls()" class="btn-secondary">Liste leeren</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Download-Status</h2>
+                <div class="progress-container">
+                    <label class="progress-label">Gesamtfortschritt:</label>
+                    <div id="video-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="video-status" class="status-text">Bereit zum Download</p>
+                    
+                    <label class="progress-label" style="margin-top: 15px;">Aktueller Download:</label>
+                    <div id="video-current-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="video-current-status" class="status-text"></p>
+                </div>
+            </div>
+
+            <button onclick="startVideoDownload()" id="video-download-btn" class="btn-download">Download starten</button>
+        </div>
+
+        <!-- Audio Tab -->
+        <div id="audio-tab" class="tab-content">
+            <div class="section">
+                <h2>Audio Format</h2>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="audio-format" value="mp3" checked>
+                        MP3
+                    </label>
+                    <label>
+                        <input type="radio" name="audio-format" value="wav">
+                        WAV
+                    </label>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Speicherort</h2>
+                <p class="hint">📥 Downloads werden automatisch in einem Ordner mit Zeitstempel gespeichert<br>
+                   Format: <code>YYYYMMDD_HHMMSS_Anzahl</code> (z.B. <code>20251126_143052_3</code>)<br>
+                   Ort: <strong>Downloads-Ordner</strong></p>
+            </div>
+
+            <div class="section">
+                <h2>YouTube URLs hinzufügen</h2>
+                <div class="url-input-group">
+                    <input type="text" id="audio-url-input" placeholder="https://www.youtube.com/watch?v=..." class="url-input">
+                    <button onclick="addAudioUrl()" class="btn-primary">Hinzufügen</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Download-Liste</h2>
+                <ul id="audio-url-list" class="url-list"></ul>
+                <div class="button-group">
+                    <button onclick="clearAudioUrls()" class="btn-secondary">Liste leeren</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Download-Status</h2>
+                <div class="progress-container">
+                    <label class="progress-label">Gesamtfortschritt:</label>
+                    <div id="audio-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="audio-status" class="status-text">Bereit zum Download</p>
+                    
+                    <label class="progress-label" style="margin-top: 15px;">Aktueller Download:</label>
+                    <div id="audio-current-progress-bar" class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p id="audio-current-status" class="status-text"></p>
+                </div>
+            </div>
+
+            <button onclick="startAudioDownload()" id="audio-download-btn" class="btn-download">Download starten</button>
+        </div>
+
+        <footer>
+            <div id="backend-status" class="backend-status">
+                Backend-Status: <span id="backend-indicator">Prüfen...</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

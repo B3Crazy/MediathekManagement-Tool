@@ -1,2 +1,3 @@
 failed_downloads.csv
 *.log
+/backend/__pycache__

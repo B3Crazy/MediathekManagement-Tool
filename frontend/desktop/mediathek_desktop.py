@@ -327,13 +327,10 @@ class MediathekDesktopApp:
         lf_search_format = ttk.LabelFrame(tab_search, text="Format für Search-Ergebnisse", padding=8)
         lf_search_format.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         
-        ttk.Label(lf_search_format, text="Video:").grid(row=0, column=0, padx=(0, 8))
-        ttk.Radiobutton(lf_search_format, text="MP4", variable=self.search_format, value="mp4").grid(row=0, column=1, padx=(0, 12))
-        ttk.Radiobutton(lf_search_format, text="MKV", variable=self.search_format, value="mkv").grid(row=0, column=2, padx=(0, 24))
+        ttk.Label(lf_search_format, text="Downloadformat:").grid(row=0, column=0, padx=(0, 8))
+        ttk.Radiobutton(lf_search_format, text="VIDEO", variable=self.search_format, value="mp4").grid(row=0, column=1, padx=(0, 12))
         
-        ttk.Label(lf_search_format, text="Audio:").grid(row=0, column=3, padx=(0, 8))
-        ttk.Radiobutton(lf_search_format, text="MP3", variable=self.search_format, value="mp3").grid(row=0, column=4, padx=(0, 12))
-        ttk.Radiobutton(lf_search_format, text="WAV", variable=self.search_format, value="wav").grid(row=0, column=5)
+        ttk.Radiobutton(lf_search_format, text="AUDIO", variable=self.search_format, value="mp3").grid(row=0, column=4, padx=(0, 12))
 
         # Search results
         lf_results = ttk.LabelFrame(tab_search, text="Suchergebnisse", padding=8)

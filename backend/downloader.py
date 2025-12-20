@@ -384,3 +384,94 @@ class AudioDownloader(BaseDownloader):
         if process.returncode != 0 and not new_audio_files and not dest_ok:
             err = "\n".join(error_output[-10:]) if error_output else "Unknown error"
             raise Exception(f"Download failed: {err}")
+
+
+def search_youtube_videos(query: str, max_results: int = 5) -> List[dict]:
+    """
+    Search YouTube videos by keyword using yt-dlp
+    Returns list of video metadata (title, channel, duration, thumbnail URL)
+    """
+    import json
+    
+    try:
+        # Use yt-dlp Python module directly instead of subprocess
+        # This avoids PATH issues on Windows
+        try:
+            import yt_dlp
+        except ImportError:
+            raise Exception("yt-dlp is not installed. Install with: pip install yt-dlp")
+        
+        search_query = f"ytsearch{max_results}:{query}"
+        
+        # Configure yt-dlp options
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': 'in_playlist',  # Only fetch metadata, don't download
+            'skip_download': True,
+            'socket_timeout': 30,
+        }
+        
+        videos = []
+        
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(search_query, download=False)
+                
+                # info['entries'] contains the search results
+                if 'entries' not in info:
+                    logging.warning(f"No 'entries' in search result for '{query}'")
+                    return []
+                
+                for entry in info.get('entries', [])[:max_results]:
+                    if entry is None:
+                        continue
+                    
+                    video_id = entry.get('id', '')
+                    if not video_id:
+                        continue
+                    
+                    video_url = f"https://www.youtube.com/watch?v={video_id}"
+                    title = entry.get('title', 'Unknown Title')
+                    channel = entry.get('uploader', 'Unknown Channel')
+                    
+                    # Format duration
+                    duration_seconds = entry.get('duration', 0)
+                    if duration_seconds:
+                        minutes = int(duration_seconds) // 60
+                        seconds = int(duration_seconds) % 60
+                        duration = f"{minutes}:{seconds:02d}"
+                    else:
+                        duration = "Unknown"
+                    
+                    # Get thumbnail URL
+                    thumbnail_url = entry.get('thumbnail', '')
+                    if not thumbnail_url and 'thumbnails' in entry:
+                        thumbnails = entry.get('thumbnails', [])
+                        if thumbnails:
+                            # Get the highest quality thumbnail
+                            thumbnail_url = thumbnails[-1].get('url', '')
+                    
+                    videos.append({
+                        "url": video_url,
+                        "title": title,
+                        "channel": channel,
+                        "duration": duration,
+                        "thumbnail_url": thumbnail_url
+                    })
+        
+        except yt_dlp.utils.DownloadError as e:
+            error_msg = str(e)
+            logging.error(f"YouTube search download error for '{query}': {error_msg}")
+            raise Exception(f"YouTube error: {error_msg}")
+        except Exception as e:
+            error_msg = str(e)
+            logging.error(f"YouTube search extraction error for '{query}': {error_msg}")
+            raise Exception(f"Search error: {error_msg}")
+        
+        logging.info(f"YouTube search '{query}' returned {len(videos)} results")
+        return videos
+        
+    except Exception as e:
+        logging.error(f"YouTube search failed for '{query}': {str(e)}")
+        raise Exception(f"Search error: {str(e)}")

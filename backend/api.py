@@ -104,41 +104,9 @@ class StatusResponse(BaseModel):
 class FormatCheckRequest(BaseModel):
     url: HttpUrl
 
-class SearchRequest(BaseModel):
-    query: str
-    max_results: Optional[int] = 5
-
-class VideoResult(BaseModel):
-    url: str
-    title: str
-    channel: str
-    duration: str
-    thumbnail_url: str
-
-class SearchResponse(BaseModel):
-    results: List[VideoResult]
-    query: str
-
 @app.get("/")
 async def root():
     return {"message": "MediathekManagement API", "status": "running"}
-
-@app.post("/api/search/youtube", response_model=SearchResponse)
-async def search_youtube(request: SearchRequest):
-    """
-    Search YouTube videos by keyword
-    Returns video metadata including title, channel, duration, and thumbnail URL
-    """
-    from downloader import search_youtube_videos
-    
-    try:
-        results = search_youtube_videos(request.query, max_results=request.max_results)
-        return SearchResponse(
-            results=results,
-            query=request.query
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"YouTube search error: {str(e)}")
 
 @app.get("/health")
 async def health_check():

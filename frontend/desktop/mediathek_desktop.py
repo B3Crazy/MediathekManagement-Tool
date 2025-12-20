@@ -12,65 +12,9 @@ import threading
 import time
 from pathlib import Path
 import queue
-from PIL import Image, ImageTk
-from io import BytesIO
-import os
-import hashlib
 
 # Backend API URL
 API_URL = "http://localhost:8000"
-
-class ThumbnailCache:
-    """Caches downloaded YouTube thumbnails locally"""
-    def __init__(self):
-        self.cache_dir = Path.home() / ".mediathek_cache" / "thumbnails"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-    
-    def get_cache_path(self, url: str) -> Path:
-        """Get cache file path for a thumbnail URL"""
-        url_hash = hashlib.md5(url.encode()).hexdigest()
-        return self.cache_dir / f"{url_hash}.jpg"
-    
-    def get_thumbnail(self, url: str, max_width: int = 120) -> ImageTk.PhotoImage:
-        """
-        Get cached or downloaded thumbnail as PhotoImage
-        Returns a PIL Image resized to max_width
-        """
-        cache_path = self.get_cache_path(url)
-        
-        # Try to load from cache
-        if cache_path.exists():
-            try:
-                img = Image.open(cache_path)
-                return self._resize_image(img, max_width)
-            except Exception:
-                pass
-        
-        # Download and cache
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                img = Image.open(BytesIO(response.content))
-                # Save to cache
-                img.save(cache_path, "JPEG")
-                return self._resize_image(img, max_width)
-        except Exception:
-            pass
-        
-        # Return placeholder if download fails
-        return self._create_placeholder(max_width)
-    
-    def _resize_image(self, img: Image.Image, max_width: int) -> ImageTk.PhotoImage:
-        """Resize image maintaining aspect ratio"""
-        ratio = max_width / img.width
-        new_height = int(img.height * ratio)
-        img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-        return ImageTk.PhotoImage(img)
-    
-    def _create_placeholder(self, size: int) -> ImageTk.PhotoImage:
-        """Create a placeholder image"""
-        img = Image.new("RGB", (size, int(size * 0.5625)), color="gray")
-        return ImageTk.PhotoImage(img)
 
 class MediathekDesktopApp:
     def __init__(self, root: tk.Tk):
@@ -78,9 +22,6 @@ class MediathekDesktopApp:
         self.root.title("MediathekManagement-Tool - Desktop")
         self.root.geometry("900x600")
         self.root.resizable(True, True)
-
-        # Thumbnail cache
-        self.thumbnail_cache = ThumbnailCache()
 
         # State
         self.download_format = tk.StringVar(value="mp4")
@@ -94,16 +35,8 @@ class MediathekDesktopApp:
         self.audio_links = []
         self.current_audio_task_id = None
 
-        # Search tab states
-        self.search_results = []
-        self.search_format = tk.StringVar(value="mp4")  # Selected format for search results
-        self.search_type = tk.StringVar(value="video")  # video or audio
-
         # Status update queue
         self.status_queue = queue.Queue()
-        
-        # Image references for thumbnails
-        self.thumbnail_references = []
 
         # Build UI
         self.create_widgets()
@@ -134,18 +67,11 @@ class MediathekDesktopApp:
         tab_audio = ttk.Frame(self.tabs, padding=10)
         self.tabs.add(tab_audio, text="YouTube → Audio")
 
-        # Tab 3: YouTube Search
-        tab_search = ttk.Frame(self.tabs, padding=10)
-        self.tabs.add(tab_search, text="YouTube Suche")
-
         # ----- Tab YouTube UI -----
         self._create_video_tab(tab_yt)
         
         # ----- Tab Audio UI -----
         self._create_audio_tab(tab_audio)
-
-        # ----- Tab Search UI -----
-        self._create_search_tab(tab_search)
 
     def _create_video_tab(self, tab_yt):
         """Create video download tab"""
@@ -311,60 +237,6 @@ class MediathekDesktopApp:
         tab_audio.rowconfigure(3, weight=1)
         tab_audio.columnconfigure(0, weight=1)
 
-    def _create_search_tab(self, tab_search):
-        """Create YouTube search tab"""
-        # Search input
-        lf_search = ttk.LabelFrame(tab_search, text="Nach Videos suchen", padding=8)
-        lf_search.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        lf_search.columnconfigure(0, weight=1)
-        
-        self.search_entry = ttk.Entry(lf_search)
-        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        self.search_entry.bind("<Return>", lambda e: self.perform_search())
-        ttk.Button(lf_search, text="Suchen", command=self.perform_search).grid(row=0, column=1)
-
-        # Format selection for search results
-        lf_search_format = ttk.LabelFrame(tab_search, text="Format für Search-Ergebnisse", padding=8)
-        lf_search_format.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        
-        ttk.Label(lf_search_format, text="Video:").grid(row=0, column=0, padx=(0, 8))
-        ttk.Radiobutton(lf_search_format, text="MP4", variable=self.search_format, value="mp4").grid(row=0, column=1, padx=(0, 12))
-        ttk.Radiobutton(lf_search_format, text="MKV", variable=self.search_format, value="mkv").grid(row=0, column=2, padx=(0, 24))
-        
-        ttk.Label(lf_search_format, text="Audio:").grid(row=0, column=3, padx=(0, 8))
-        ttk.Radiobutton(lf_search_format, text="MP3", variable=self.search_format, value="mp3").grid(row=0, column=4, padx=(0, 12))
-        ttk.Radiobutton(lf_search_format, text="WAV", variable=self.search_format, value="wav").grid(row=0, column=5)
-
-        # Search results
-        lf_results = ttk.LabelFrame(tab_search, text="Suchergebnisse", padding=8)
-        lf_results.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
-        lf_results.rowconfigure(0, weight=1)
-        lf_results.columnconfigure(0, weight=1)
-
-        # Canvas for scrollable results
-        self.search_canvas = tk.Canvas(lf_results, bg="white", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(lf_results, orient="vertical", command=self.search_canvas.yview)
-        self.search_results_frame = ttk.Frame(self.search_canvas)
-        
-        self.search_results_frame.bind(
-            "<Configure>",
-            lambda e: self.search_canvas.configure(scrollregion=self.search_canvas.bbox("all"))
-        )
-        
-        self.search_canvas.create_window((0, 0), window=self.search_results_frame, anchor="nw")
-        self.search_canvas.configure(yscrollcommand=scrollbar.set)
-        
-        self.search_canvas.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
-
-        # Search status label
-        self.search_status_label = ttk.Label(tab_search, text="Bereit zur Suche", foreground="blue")
-        self.search_status_label.grid(row=3, column=0, columnspan=2, sticky="ew")
-
-        # Layout stretch
-        tab_search.rowconfigure(2, weight=1)
-        tab_search.columnconfigure(0, weight=1)
-
     # ----- Backend Communication -----
     
     def check_backend(self):
@@ -526,115 +398,7 @@ class MediathekDesktopApp:
         self.audio_links.clear()
         self.audio_url_listbox.delete(0, tk.END)
         self.audio_status_label.config(text=f"✓ Liste geleert ({count} URLs entfernt)")
-    # ----- Search Tab Methods -----
-    
-    def perform_search(self):
-        """Search YouTube for videos"""
-        query = self.search_entry.get().strip()
-        if not query:
-            self.search_status_label.config(text="⚠ Bitte geben Sie einen Suchbegriff ein", foreground="red")
-            return
-        
-        self.search_status_label.config(text="🔍 Suche läuft...", foreground="blue")
-        
-        def search():
-            try:
-                response = requests.post(
-                    f"{API_URL}/api/search/youtube",
-                    json={"query": query, "max_results": 10},
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    self.search_results = data["results"]
-                    self.status_queue.put(("search_results", len(self.search_results)))
-                else:
-                    self.status_queue.put(("search_error", f"Server: {response.text[:100]}"))
-            except Exception as e:
-                self.status_queue.put(("search_error", str(e)))
-        
-        threading.Thread(target=search, daemon=True).start()
-    
-    def display_search_results(self):
-        """Display search results with thumbnails"""
-        # Clear previous results
-        for widget in self.search_results_frame.winfo_children():
-            widget.destroy()
-        
-        if not self.search_results:
-            label = ttk.Label(self.search_results_frame, text="Keine Ergebnisse gefunden")
-            label.pack(pady=20)
-            return
-        
-        for video in self.search_results:
-            self._create_search_result_card(video)
-    
-    def _create_search_result_card(self, video: dict):
-        """Create a card for a single search result"""
-        card = ttk.Frame(self.search_results_frame, relief="solid", borderwidth=1)
-        card.pack(fill="x", padx=5, pady=5)
-        
-        # Left: Thumbnail
-        thumbnail_frame = ttk.Frame(card)
-        thumbnail_frame.pack(side="left", padx=8, pady=8)
-        
-        # Get thumbnail image
-        img = self.thumbnail_cache.get_thumbnail(video["thumbnail_url"])
-        thumb_label = tk.Label(thumbnail_frame, image=img, bg="gray")
-        self.thumbnail_references.append(img)  # Keep reference to prevent garbage collection
-        thumb_label.pack()
-        
-        # Middle: Video info
-        info_frame = ttk.Frame(card)
-        info_frame.pack(side="left", fill="both", expand=True, padx=8, pady=8)
-        
-        title_label = ttk.Label(info_frame, text=video["title"], font=("", 10, "bold"), wraplength=300, justify="left")
-        title_label.pack(anchor="w")
-        
-        channel_label = ttk.Label(info_frame, text=f"Channel: {video['channel']}", font=("", 9), foreground="gray")
-        channel_label.pack(anchor="w", pady=(3, 0))
-        
-        duration_label = ttk.Label(info_frame, text=f"Duration: {video['duration']}", font=("", 9), foreground="gray")
-        duration_label.pack(anchor="w")
-        
-        # Right: Add to list button
-        button_frame = ttk.Frame(card)
-        button_frame.pack(side="right", padx=8, pady=8)
-        
-        format_str = self.search_format.get()
-        if format_str in ("mp4", "mkv"):
-            type_label = "Video"
-        else:
-            type_label = "Audio"
-        
-        btn = ttk.Button(
-            button_frame,
-            text=f"Zur Liste\n({format_str.upper()})",
-            command=lambda url=video["url"]: self.add_search_result_to_list(url)
-        )
-        btn.pack()
-    
-    def add_search_result_to_list(self, url: str):
-        """Add a search result to the appropriate download list"""
-        format_str = self.search_format.get()
-        
-        if format_str in ("mp4", "mkv"):
-            # Video format
-            if url in self.url_links:
-                self.search_status_label.config(text="ℹ Diese URL ist bereits in der Video-Liste", foreground="blue")
-                return
-            self.url_links.append(url)
-            self.url_listbox.insert(tk.END, url)
-            self.search_status_label.config(text=f"✓ URL zur Video-Liste hinzugefügt ({len(self.url_links)} in Liste)", foreground="green")
-        else:
-            # Audio format
-            if url in self.audio_links:
-                self.search_status_label.config(text="ℹ Diese URL ist bereits in der Audio-Liste", foreground="blue")
-                return
-            self.audio_links.append(url)
-            self.audio_url_listbox.insert(tk.END, url)
-            self.search_status_label.config(text=f"✓ URL zur Audio-Liste hinzugefügt ({len(self.audio_links)} in Liste)", foreground="green")
+
     def start_audio_download(self):
         """Start audio download via backend API"""
         if not self.audio_links:
@@ -682,13 +446,6 @@ class MediathekDesktopApp:
                 elif msg_type == "audio_error":
                     self.audio_status_label.config(text=f"❌ Fehler: {data[0][:50]}...")
                     self.audio_download_button.config(state="normal", text="Download starten")
-                elif msg_type == "search_results":
-                    result_count = data[0]
-                    self.search_status_label.config(text=f"✓ {result_count} Ergebnisse gefunden", foreground="green")
-                    self.display_search_results()
-                elif msg_type == "search_error":
-                    error_msg = data[0]
-                    self.search_status_label.config(text=f"❌ Fehler: {error_msg[:50]}...", foreground="red")
                     
         except queue.Empty:
             pass

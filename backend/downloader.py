@@ -247,6 +247,9 @@ class VideoDownloader(BaseDownloader):
         )
         
         error_output = []
+        if process.stdout is None:
+            raise Exception("Failed to capture process output")
+        
         for line in process.stdout:
             line = line.strip()
             if line:
@@ -321,6 +324,9 @@ class AudioDownloader(BaseDownloader):
         
         error_output = []
         last_destination = None
+        
+        if process.stdout is None:
+            raise Exception("Failed to capture process output")
         
         for line in process.stdout:
             line = line.strip()

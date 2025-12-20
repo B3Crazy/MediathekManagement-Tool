@@ -47,7 +47,7 @@ def check_ytdlp() -> bool:
     """Check if yt-dlp is available"""
     try:
         result = subprocess.run(
-            ["yt-dlp", "--version"],
+            [sys.executable, "-m", "yt_dlp", "--version"],
             capture_output=True,
             text=True,
             timeout=10
@@ -73,7 +73,7 @@ def check_available_formats(url: str) -> str:
     """Check available formats for a URL"""
     try:
         result = subprocess.run(
-            ["yt-dlp", "--list-formats", url],
+            [sys.executable, "-m", "yt_dlp", "--list-formats", url],
             capture_output=True,
             text=True,
             timeout=60
@@ -214,7 +214,9 @@ class VideoDownloader(BaseDownloader):
         format_str = self._get_format_string()
         
         cmd = [
-            "yt-dlp",
+            sys.executable,
+            "-m",
+            "yt_dlp",
             "-f", format_str,
             "-o", output_template,
             "--no-playlist",
@@ -282,7 +284,9 @@ class AudioDownloader(BaseDownloader):
         files_before = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
         
         cmd = [
-            "yt-dlp",
+            sys.executable,
+            "-m",
+            "yt_dlp",
             "-f", "bestaudio/best",
             "-x",
             "--audio-format", self.format_type,

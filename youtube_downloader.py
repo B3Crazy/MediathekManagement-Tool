@@ -342,7 +342,7 @@ class YouTubeDownloaderApp:
     
     def check_ytdlp(self) -> bool:
         try:
-            r = subprocess.run(["yt-dlp", "--version"], capture_output=True, text=True, timeout=10)
+            r = subprocess.run([sys.executable, "-m", "yt_dlp", "--version"], capture_output=True, text=True, timeout=10)
             if r.returncode == 0:
                 return True
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -362,6 +362,7 @@ class YouTubeDownloaderApp:
                     self.progress_queue.put(("install_complete", False, str(e)))
             threading.Thread(target=_install, daemon=True).start()
             return False
+        return False
 
     def check_ffmpeg(self) -> bool:
         try:
@@ -444,7 +445,7 @@ class YouTubeDownloaderApp:
                     fmt = self.select_format_string()
                     out = os.path.join(self.download_path.get(), "%(title)s.%(ext)s")
                     cmd = [
-                        "yt-dlp",
+                        sys.executable, "-m", "yt_dlp",
                         "-f", fmt,
                         "-o", out,
                         "--no-playlist",
@@ -471,7 +472,7 @@ class YouTubeDownloaderApp:
                     
                     # Read output line by line to track progress
                     error_output = []
-                    for line in process.stdout:
+                    for line in (process.stdout or []):
                         line = line.strip()
                         if line:
                             error_output.append(line)
@@ -648,7 +649,7 @@ class YouTubeDownloaderApp:
                     
                     # Download beste Audiospur und konvertiere ins gewählte Format
                     cmd = [
-                        "yt-dlp",
+                        sys.executable, "-m", "yt_dlp",
                         "-f", "bestaudio/best",
                         "-x",  # Extract audio
                         "--audio-format", format_type,
@@ -680,7 +681,7 @@ class YouTubeDownloaderApp:
                     error_output = []
                     last_status = ""
                     last_destination = None
-                    for line in process.stdout:
+                    for line in (process.stdout or []):
                         line = line.strip()
                         if line:
                             error_output.append(line)
@@ -827,7 +828,7 @@ class YouTubeDownloaderApp:
 
         def worker():
             try:
-                r = subprocess.run(["yt-dlp", "--list-formats", url], capture_output=True, text=True, timeout=60)
+                r = subprocess.run([sys.executable, "-m", "yt_dlp", "--list-formats", url], capture_output=True, text=True, timeout=60)
                 if r.returncode == 0:
                     win = tk.Toplevel(self.root)
                     win.title("Verfügbare Formate")

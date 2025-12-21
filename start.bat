@@ -1,19 +1,25 @@
 @echo off
-echo YouTube Downloader - Setup
-echo ========================
+REM Wechsle zum Verzeichnis der Batch-Datei
+cd /d "%~dp0"
 
-echo Installiere Abhängigkeiten...
-pip install -r requirements.txt
+echo YouTube Downloader
+echo ==================
 
-if %ERRORLEVEL% == 0 (
-    echo.
+REM Prüfe ob yt-dlp installiert ist
+python -c "import yt_dlp" 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo yt-dlp nicht gefunden, installiere...
+    pip install --user -r requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        echo.
+        echo Fehler bei der Installation!
+        echo Bitte fuehren Sie 'pip install --user yt-dlp' manuell aus.
+        pause
+        exit /b 1
+    )
     echo Installation erfolgreich!
-    echo.
-    echo Starte die App...
-    python youtube_downloader.py
-) else (
-    echo.
-    echo Fehler bei der Installation!
-    echo Bitte führen Sie 'pip install yt-dlp' manuell aus.
-    pause
 )
+
+echo Starte die App...
+python youtube_downloader.py
+pause

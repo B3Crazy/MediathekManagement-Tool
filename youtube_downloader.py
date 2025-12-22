@@ -263,29 +263,21 @@ class YouTubeDownloaderApp:
         
         result_control_frame = ttk.Frame(lf_max_results)
         result_control_frame.pack(fill=tk.X, padx=5, pady=5)
-        result_control_frame.columnconfigure(1, weight=1)
+        result_control_frame.columnconfigure(0, weight=1)
         
         self.all_results_var = tk.BooleanVar(value=False)
         self.max_results_var = tk.IntVar(value=10)
+        
+        # Slider
+        self.max_results_slider = tk.Scale(result_control_frame, from_=1, to=20, orient=tk.HORIZONTAL,
+                                          variable=self.max_results_var, showvalue=True)
+        self.max_results_slider.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         
         # All results checkbox
         all_results_check = ttk.Checkbutton(result_control_frame, text="Alle Ergebnisse", 
                                            variable=self.all_results_var,
                                            command=self.toggle_all_results)
-        all_results_check.grid(row=0, column=0, padx=(0, 10), sticky="w")
-        
-        # Slider frame
-        slider_frame = ttk.Frame(result_control_frame)
-        slider_frame.grid(row=0, column=1, sticky="ew")
-        slider_frame.columnconfigure(0, weight=1)
-        
-        self.max_results_slider = tk.Scale(slider_frame, from_=1, to=20, orient=tk.HORIZONTAL,
-                                          variable=self.max_results_var, showvalue=True,
-                                          length=200)
-        self.max_results_slider.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        
-        self.results_label = ttk.Label(slider_frame, text="Ergebnisse")
-        self.results_label.grid(row=0, column=1, sticky="w")
+        all_results_check.grid(row=0, column=1, sticky="e", pady=(15, 0))
 
         # Search results frame
         lf_results = ttk.LabelFrame(tab_search, text="Suchergebnisse", padding=8)
@@ -349,10 +341,8 @@ class YouTubeDownloaderApp:
     def toggle_all_results(self):
         if self.all_results_var.get():
             self.max_results_slider.config(state="disabled")
-            self.results_label.config(text="(Alle)")
         else:
             self.max_results_slider.config(state="normal")
-            self.results_label.config(text="Ergebnisse")
 
     def browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.download_path.get())

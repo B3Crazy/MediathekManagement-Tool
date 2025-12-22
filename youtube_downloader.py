@@ -969,21 +969,21 @@ class YouTubeDownloaderApp:
         try:
             # Determine search prefix based on all results checkbox
             if self.all_results_var.get():
-                search_prefix = "ytsearch"
+                search_prefix = "ytsearch100"  # Get up to 100 results when "all" is selected
             else:
                 max_results = self.max_results_var.get()
                 search_prefix = f"ytsearch{max_results}"
             
-            # Use yt-dlp to search YouTube with JSON output for better parsing
+            # Use yt-dlp to search YouTube with flat-playlist for faster results
             cmd = [
                 sys.executable, "-m", "yt_dlp",
                 f"{search_prefix}:{query}",
+                "--flat-playlist",  # Fast search - only basic info
                 "--dump-json",
-                "--skip-download",
                 "--no-warnings"
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode != 0:
                 self.progress_queue.put(("search_error", f"Suche fehlgeschlagen: {result.stderr}"))
@@ -1000,9 +1000,17 @@ class YouTubeDownloaderApp:
                     data = json.loads(line)
                     video_id = data.get('id', '')
                     title = data.get('title', 'Kein Titel')
-                    duration = data.get('duration_string', 'N/A')
                     
-                    # Get best thumbnail (prefer maxresdefault, then hqdefault)
+                    # Duration from flat-playlist (in seconds, need to convert)
+                    duration_seconds = data.get('duration', 0)
+                    if duration_seconds:
+                        mins = int(duration_seconds // 60)
+                        secs = int(duration_seconds % 60)
+                        duration = f"{mins}:{secs:02d}"
+                    else:
+                        duration = 'N/A'
+                    
+                    # Thumbnails from flat-playlist
                     thumbnail_url = None
                     thumbnails = data.get('thumbnails', [])
                     if thumbnails:
@@ -1112,7 +1120,6 @@ class YouTubeDownloaderApp:
         self.url_links.append(url)
         self.url_listbox.insert(tk.END, url)
         self.logger("info", f"Video-URL aus Suche hinzugefügt: {url}")
-        messagebox.showinfo("Erfolg", "Video zur Download-Liste hinzugefügt!")
 
     def add_search_result_to_audio(self, url: str):
         # Clean URL
@@ -1126,7 +1133,6 @@ class YouTubeDownloaderApp:
         self.audio_links.append(url)
         self.audio_url_listbox.insert(tk.END, url)
         self.logger("info", f"Audio-URL aus Suche hinzugefügt: {url}")
-        messagebox.showinfo("Erfolg", "Audio zur Download-Liste hinzugefügt!")
 
     def load_thumbnail(self, thumbnail_url: str, label_widget, idx: int):
         if not thumbnail_url:

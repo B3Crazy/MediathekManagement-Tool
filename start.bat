@@ -22,4 +22,3 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo Starte die App...
 python youtube_downloader.py
-pause

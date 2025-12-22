@@ -19,6 +19,10 @@ import subprocess
 import logging
 import re
 import csv
+import json
+from io import BytesIO
+from urllib.request import urlopen
+from PIL import Image, ImageTk
 
 
 class YouTubeDownloaderApp:
@@ -40,6 +44,10 @@ class YouTubeDownloaderApp:
         self.audio_path = tk.StringVar(value=str(Path.home() / "Downloads"))
         self.audio_links = []
         self.is_downloading_audio = False
+
+        # Search tab states
+        self.search_results = []
+        self.is_searching = False
 
         # Queues/state
         self.progress_queue = queue.Queue()
@@ -83,6 +91,10 @@ class YouTubeDownloaderApp:
         # Tab 2: YouTube Audio
         tab_audio = ttk.Frame(self.tabs, padding=10)
         self.tabs.add(tab_audio, text="YouTube → Audio")
+
+        # Tab 3: YouTube Search
+        tab_search = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(tab_search, text="YouTube Suche")
 
         # ----- Tab YouTube UI -----
         lf_format = ttk.LabelFrame(tab_yt, text="Video Format", padding=8)
@@ -228,6 +240,92 @@ class YouTubeDownloaderApp:
         tab_audio.rowconfigure(3, weight=1)
         tab_audio.columnconfigure(0, weight=1)
 
+        # ----- Tab Search UI -----
+        # Search input
+        lf_search = ttk.LabelFrame(tab_search, text="YouTube Suche", padding=8)
+        lf_search.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        lf_search.columnconfigure(0, weight=1)
+        self.search_entry = ttk.Entry(lf_search)
+        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self.search_placeholder = "Suchbegriff eingeben..."
+        self.search_entry.insert(0, self.search_placeholder)
+        self.search_entry.config(foreground="grey")
+        self.search_entry.bind("<FocusIn>", self.on_search_entry_focus_in)
+        self.search_entry.bind("<FocusOut>", self.on_search_entry_focus_out)
+        self.search_entry.bind("<Return>", lambda e: self.search_youtube())
+        self.search_button = ttk.Button(lf_search, text="Suchen", command=self.search_youtube)
+        self.search_button.grid(row=0, column=1)
+
+        # Max results selection
+        lf_max_results = ttk.LabelFrame(tab_search, text="Anzahl Ergebnisse", padding=8)
+        lf_max_results.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        lf_max_results.columnconfigure(0, weight=1)
+        
+        result_control_frame = ttk.Frame(lf_max_results)
+        result_control_frame.pack(fill=tk.X, padx=5, pady=5)
+        result_control_frame.columnconfigure(1, weight=1)
+        
+        self.all_results_var = tk.BooleanVar(value=False)
+        self.max_results_var = tk.IntVar(value=10)
+        
+        # All results checkbox
+        all_results_check = ttk.Checkbutton(result_control_frame, text="Alle Ergebnisse", 
+                                           variable=self.all_results_var,
+                                           command=self.toggle_all_results)
+        all_results_check.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        
+        # Slider frame
+        slider_frame = ttk.Frame(result_control_frame)
+        slider_frame.grid(row=0, column=1, sticky="ew")
+        slider_frame.columnconfigure(0, weight=1)
+        
+        self.max_results_slider = tk.Scale(slider_frame, from_=1, to=20, orient=tk.HORIZONTAL,
+                                          variable=self.max_results_var, showvalue=True,
+                                          length=200)
+        self.max_results_slider.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        
+        self.results_label = ttk.Label(slider_frame, text="Ergebnisse")
+        self.results_label.grid(row=0, column=1, sticky="w")
+
+        # Search results frame
+        lf_results = ttk.LabelFrame(tab_search, text="Suchergebnisse", padding=8)
+        lf_results.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
+        lf_results.rowconfigure(0, weight=1)
+        lf_results.columnconfigure(0, weight=1)
+        
+        # Canvas with scrollbar for results
+        results_canvas = tk.Canvas(lf_results, highlightthickness=0)
+        results_scrollbar = ttk.Scrollbar(lf_results, orient="vertical", command=results_canvas.yview)
+        self.results_frame = ttk.Frame(results_canvas)
+        
+        results_canvas.configure(yscrollcommand=results_scrollbar.set)
+        results_scrollbar.grid(row=0, column=1, sticky="ns")
+        results_canvas.grid(row=0, column=0, sticky="nsew")
+        
+        results_canvas_frame = results_canvas.create_window((0, 0), window=self.results_frame, anchor="nw")
+        
+        def on_frame_configure(event):
+            results_canvas.configure(scrollregion=results_canvas.bbox("all"))
+        
+        def on_canvas_configure(event):
+            results_canvas.itemconfig(results_canvas_frame, width=event.width)
+        
+        self.results_frame.bind("<Configure>", on_frame_configure)
+        results_canvas.bind("<Configure>", on_canvas_configure)
+        
+        # Mouse wheel scrolling
+        def on_mousewheel(event):
+            results_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        results_canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        # Search status label
+        self.search_status_label = ttk.Label(tab_search, text="Bereit zur Suche")
+        self.search_status_label.grid(row=3, column=0, columnspan=2, pady=(0, 10))
+
+        # Layout stretch
+        tab_search.rowconfigure(2, weight=1)
+        tab_search.columnconfigure(0, weight=1)
+
     def on_url_entry_focus_in(self, _):
         if self.url_entry.get() == self.url_placeholder:
             self.url_entry.delete(0, tk.END)
@@ -237,6 +335,24 @@ class YouTubeDownloaderApp:
         if not self.url_entry.get().strip():
             self.url_entry.insert(0, self.url_placeholder)
             self.url_entry.config(foreground="grey")
+
+    def on_search_entry_focus_in(self, _):
+        if self.search_entry.get() == self.search_placeholder:
+            self.search_entry.delete(0, tk.END)
+            self.search_entry.config(foreground="black")
+
+    def on_search_entry_focus_out(self, _):
+        if not self.search_entry.get().strip():
+            self.search_entry.insert(0, self.search_placeholder)
+            self.search_entry.config(foreground="grey")
+
+    def toggle_all_results(self):
+        if self.all_results_var.get():
+            self.max_results_slider.config(state="disabled")
+            self.results_label.config(text="(Alle)")
+        else:
+            self.max_results_slider.config(state="normal")
+            self.results_label.config(text="Ergebnisse")
 
     def browse_folder(self):
         folder = filedialog.askdirectory(initialdir=self.download_path.get())
@@ -451,12 +567,22 @@ class YouTubeDownloaderApp:
                         "--no-playlist",
                         "--newline",
                         "--cache-dir", cache_dir,  # Cache-Verzeichnis explizit setzen
-                        "--embed-thumbnail",  # Thumbnail in Datei einbetten
                         "--embed-metadata",   # Metadata (Titel, Artist, etc.) einbetten
                     ]
+                    
+                    # Thumbnail embedding und Format-Optionen mit ffmpeg
                     if self.ffmpeg_available:
                         # Merge/Remux ins gewünschte Containerformat
-                        cmd += ["--merge-output-format", self.download_format.get(), "--format-sort", "res,fps,br"]
+                        cmd += [
+                            "--merge-output-format", self.download_format.get(), 
+                            "--format-sort", "res,fps,br",
+                            "--embed-thumbnail",  # Embed thumbnail using ffmpeg
+                            "--convert-thumbnails", "jpg",  # Convert to JPG first
+                        ]
+                        # Use postprocessor args for better thumbnail embedding
+                        if self.download_format.get() == "mp4":
+                            # For MP4, ensure thumbnail is properly embedded as cover art
+                            cmd += ["--ppa", "EmbedThumbnail:-disposition:v:1 attached_pic"]
                     else:
                         # Ohne ffmpeg: Erzwinge gewünschtes Format durch Remux (falls möglich)
                         # oder akzeptiere was verfügbar ist
@@ -816,6 +942,237 @@ class YouTubeDownloaderApp:
         self.progress_queue.put(("audio_complete", 100, f"Alle {format_type.upper()}-Downloads abgeschlossen!"))
         self.logger("info", "Alle Audio-Downloads abgeschlossen")
 
+    # ---------------------- Search Methods ----------------------
+    def search_youtube(self):
+        query = self.search_entry.get().strip()
+        if not query or query == self.search_placeholder:
+            messagebox.showwarning("Warnung", "Bitte geben Sie einen Suchbegriff ein.")
+            return
+
+        if self.is_searching:
+            messagebox.showinfo("Info", "Eine Suche läuft bereits.")
+            return
+
+        self.is_searching = True
+        self.search_button.config(state="disabled")
+        self.search_status_label.config(text="Suche läuft...")
+        self.logger("info", f"YouTube-Suche gestartet: {query}")
+
+        # Clear previous results
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+        self.search_results = []
+
+        threading.Thread(target=self.perform_search, args=(query,), daemon=True).start()
+
+    def perform_search(self, query: str):
+        try:
+            # Determine search prefix based on all results checkbox
+            if self.all_results_var.get():
+                search_prefix = "ytsearch"
+            else:
+                max_results = self.max_results_var.get()
+                search_prefix = f"ytsearch{max_results}"
+            
+            # Use yt-dlp to search YouTube with JSON output for better parsing
+            cmd = [
+                sys.executable, "-m", "yt_dlp",
+                f"{search_prefix}:{query}",
+                "--dump-json",
+                "--skip-download",
+                "--no-warnings"
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            
+            if result.returncode != 0:
+                self.progress_queue.put(("search_error", f"Suche fehlgeschlagen: {result.stderr}"))
+                self.logger("error", f"YouTube-Suche fehlgeschlagen: {result.stderr}")
+                return
+
+            # Parse JSON results - each line is a separate JSON object
+            import json
+            lines = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+            
+            results = []
+            for line in lines:
+                try:
+                    data = json.loads(line)
+                    video_id = data.get('id', '')
+                    title = data.get('title', 'Kein Titel')
+                    duration = data.get('duration_string', 'N/A')
+                    
+                    # Get best thumbnail (prefer maxresdefault, then hqdefault)
+                    thumbnail_url = None
+                    thumbnails = data.get('thumbnails', [])
+                    if thumbnails:
+                        # Try to get the highest quality thumbnail
+                        for thumb in reversed(thumbnails):
+                            if thumb.get('url'):
+                                thumbnail_url = thumb['url']
+                                break
+                    
+                    # Fallback to default YouTube thumbnail format
+                    if not thumbnail_url and video_id:
+                        thumbnail_url = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+                    
+                    url = f"https://www.youtube.com/watch?v={video_id}"
+                    results.append({
+                        'title': title,
+                        'video_id': video_id,
+                        'url': url,
+                        'duration': duration,
+                        'thumbnail': thumbnail_url
+                    })
+                except json.JSONDecodeError as e:
+                    self.logger("warning", f"Fehler beim Parsen der JSON-Zeile: {e}")
+                    continue
+
+            self.search_results = results
+            self.progress_queue.put(("search_complete", len(results)))
+            self.logger("info", f"YouTube-Suche abgeschlossen: {len(results)} Ergebnisse gefunden")
+
+        except subprocess.TimeoutExpired:
+            self.progress_queue.put(("search_error", "Suche Timeout"))
+            self.logger("error", "YouTube-Suche Timeout")
+        except Exception as e:
+            self.progress_queue.put(("search_error", str(e)))
+            self.logger("error", f"Fehler bei YouTube-Suche: {e}")
+
+    def display_search_results(self):
+        # Clear previous results
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+
+        if not self.search_results:
+            ttk.Label(self.results_frame, text="Keine Ergebnisse gefunden").pack(pady=20)
+            return
+
+        for idx, result in enumerate(self.search_results):
+            # Create frame for each result
+            result_frame = ttk.Frame(self.results_frame, relief="solid", borderwidth=1, padding=5)
+            result_frame.pack(fill=tk.X, padx=5, pady=5)
+            result_frame.columnconfigure(1, weight=1)
+
+            # Thumbnail on the left
+            thumbnail_label = ttk.Label(result_frame)
+            thumbnail_label.grid(row=0, column=0, rowspan=4, padx=(5, 10), pady=5, sticky="nw")
+            
+            # Load thumbnail in background
+            threading.Thread(target=self.load_thumbnail, 
+                           args=(result['thumbnail'], thumbnail_label, idx), 
+                           daemon=True).start()
+
+            # Content frame for text and buttons
+            content_frame = ttk.Frame(result_frame)
+            content_frame.grid(row=0, column=1, sticky="nsew")
+            content_frame.columnconfigure(0, weight=1)
+
+            # Title (truncate if too long)
+            title_text = result['title']
+            if len(title_text) > 70:
+                title_text = title_text[:67] + "..."
+            title_label = ttk.Label(content_frame, text=title_text, font=("TkDefaultFont", 10, "bold"), wraplength=500)
+            title_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+
+            # Duration and Video ID
+            info_text = f"Dauer: {result['duration']} | ID: {result['video_id']}"
+            info_label = ttk.Label(content_frame, text=info_text, foreground="grey")
+            info_label.grid(row=1, column=0, sticky="w", pady=(0, 5))
+
+            # URL (truncated for display)
+            url_text = result['url']
+            if len(url_text) > 60:
+                url_text = url_text[:57] + "..."
+            url_label = ttk.Label(content_frame, text=url_text, foreground="blue", cursor="hand2")
+            url_label.grid(row=2, column=0, sticky="w", pady=(0, 5))
+            url_label.bind("<Button-1>", lambda e, u=result['url']: self.open_url(u))
+
+            # Buttons
+            btn_frame = ttk.Frame(content_frame)
+            btn_frame.grid(row=3, column=0, sticky="w")
+            
+            video_btn = ttk.Button(btn_frame, text="→ Video hinzufügen", 
+                                   command=lambda u=result['url']: self.add_search_result_to_video(u))
+            video_btn.pack(side=tk.LEFT, padx=(0, 5))
+            
+            audio_btn = ttk.Button(btn_frame, text="→ Audio hinzufügen", 
+                                   command=lambda u=result['url']: self.add_search_result_to_audio(u))
+            audio_btn.pack(side=tk.LEFT)
+
+    def add_search_result_to_video(self, url: str):
+        # Clean URL
+        url = re.sub(r'[&?]t=\d+[smh]?', '', url)
+        
+        if url in self.url_links:
+            messagebox.showinfo("Info", "Diese URL ist bereits in der Video-Liste.")
+            self.logger("info", f"Versuch, doppelte URL zur Video-Liste hinzuzufügen: {url}")
+            return
+        
+        self.url_links.append(url)
+        self.url_listbox.insert(tk.END, url)
+        self.logger("info", f"Video-URL aus Suche hinzugefügt: {url}")
+        messagebox.showinfo("Erfolg", "Video zur Download-Liste hinzugefügt!")
+
+    def add_search_result_to_audio(self, url: str):
+        # Clean URL
+        url = re.sub(r'[&?]t=\d+[smh]?', '', url)
+        
+        if url in self.audio_links:
+            messagebox.showinfo("Info", "Diese URL ist bereits in der Audio-Liste.")
+            self.logger("info", f"Versuch, doppelte URL zur Audio-Liste hinzuzufügen: {url}")
+            return
+        
+        self.audio_links.append(url)
+        self.audio_url_listbox.insert(tk.END, url)
+        self.logger("info", f"Audio-URL aus Suche hinzugefügt: {url}")
+        messagebox.showinfo("Erfolg", "Audio zur Download-Liste hinzugefügt!")
+
+    def load_thumbnail(self, thumbnail_url: str, label_widget, idx: int):
+        if not thumbnail_url:
+            self.logger("warning", f"Keine Thumbnail-URL für Index {idx}")
+            self.root.after(0, lambda: label_widget.config(text="[Kein Bild]"))
+            return
+            
+        try:
+            self.logger("info", f"Lade Thumbnail von: {thumbnail_url}")
+            
+            # Download thumbnail with proper headers
+            import urllib.request
+            req = urllib.request.Request(thumbnail_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                image_data = response.read()
+            
+            self.logger("info", f"Thumbnail heruntergeladen: {len(image_data)} bytes")
+            
+            # Open and resize image
+            image = Image.open(BytesIO(image_data))
+            # Resize to standard thumbnail size (120x90 maintains 4:3 aspect ratio)
+            image = image.resize((120, 90), Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage - must be done in main thread
+            def update_image():
+                try:
+                    photo = ImageTk.PhotoImage(image)
+                    label_widget.config(image=photo)
+                    label_widget.image = photo  # Keep a reference
+                    self.logger("info", f"Thumbnail erfolgreich angezeigt für Index {idx}")
+                except Exception as e:
+                    self.logger("error", f"Fehler beim Setzen des Thumbnails: {e}")
+                    label_widget.config(text="[Kein Bild]")
+            
+            # Schedule update in main thread
+            self.root.after(0, update_image)
+            
+        except Exception as e:
+            # On error, show placeholder text in main thread
+            self.logger("error", f"Fehler beim Laden des Thumbnails von {thumbnail_url}: {e}")
+            self.root.after(0, lambda: label_widget.config(text="[Kein Bild]"))
+
+    def open_url(self, url: str):
+        import webbrowser
+        webbrowser.open(url)
+
     # ---------------------- Extras ----------------------
     def check_formats(self):
         sel = self.url_listbox.curselection()
@@ -904,6 +1261,18 @@ class YouTubeDownloaderApp:
                     prog, text = data
                     self.audio_current_progress_var.set(prog)
                     self.audio_current_status_label.config(text=text)
+                elif msg_type == "search_complete":
+                    num_results = data[0]
+                    self.search_status_label.config(text=f"{num_results} Ergebnisse gefunden")
+                    self.search_button.config(state="normal")
+                    self.is_searching = False
+                    self.display_search_results()
+                elif msg_type == "search_error":
+                    err = data[0]
+                    self.search_status_label.config(text="Suche fehlgeschlagen")
+                    self.search_button.config(state="normal")
+                    self.is_searching = False
+                    messagebox.showerror("Suchfehler", f"Fehler bei der Suche:\n{err}")
         except queue.Empty:
             pass
         self.root.after(100, self.check_progress_queue)

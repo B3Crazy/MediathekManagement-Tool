@@ -267,7 +267,9 @@ function pollVideoStatus() {
             
             // Check if zip file is ready
             if (status.zip_ready && status.download_url) {
+                // Stop polling immediately to prevent multiple downloads
                 clearInterval(interval);
+                
                 const button = document.getElementById('video-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
@@ -276,18 +278,28 @@ function pollVideoStatus() {
                 updateVideoCurrentProgress(0);
                 updateVideoCurrentStatus('');
                 
-                // Trigger download
+                // Update status message
+                updateVideoStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
+                
+                // Trigger download automatically without redirect
                 const zipUrl = `${API_URL}${status.download_url}`;
-                window.location.href = zipUrl;
+                const link = document.createElement('a');
+                link.href = zipUrl;
+                link.download = '';  // Browser will use filename from Content-Disposition header
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
                 
-                // Show message and wait for user confirmation
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
+                // Store task ID for cleanup
+                const taskIdForCleanup = currentVideoTaskId;
                 
-                // After user closes the popup, cleanup on server
-                cleanupTask(currentVideoTaskId);
-                
-                // Reset task ID
+                // Reset task ID immediately to prevent re-triggering
                 currentVideoTaskId = null;
+                
+                // Cleanup on server after longer delay (10s to ensure browser completes download)
+                setTimeout(() => {
+                    cleanupTask(taskIdForCleanup);
+                }, 10000);
             }
             else if (status.status === 'complete') {
                 // Still processing zip, keep polling
@@ -382,7 +394,9 @@ function pollAudioStatus() {
             
             // Check if zip file is ready
             if (status.zip_ready && status.download_url) {
+                // Stop polling immediately to prevent multiple downloads
                 clearInterval(interval);
+                
                 const button = document.getElementById('audio-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
@@ -391,18 +405,28 @@ function pollAudioStatus() {
                 updateAudioCurrentProgress(0);
                 updateAudioCurrentStatus('');
                 
-                // Trigger download
+                // Update status message
+                updateAudioStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
+                
+                // Trigger download automatically without redirect
                 const zipUrl = `${API_URL}${status.download_url}`;
-                window.location.href = zipUrl;
+                const link = document.createElement('a');
+                link.href = zipUrl;
+                link.download = '';  // Browser will use filename from Content-Disposition header
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
                 
-                // Show message and wait for user confirmation
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
+                // Store task ID for cleanup
+                const taskIdForCleanup = currentAudioTaskId;
                 
-                // After user closes the popup, cleanup on server
-                cleanupTask(currentAudioTaskId);
-                
-                // Reset task ID
+                // Reset task ID immediately to prevent re-triggering
                 currentAudioTaskId = null;
+                
+                // Cleanup on server after longer delay (10s to ensure browser completes download)
+                setTimeout(() => {
+                    cleanupTask(taskIdForCleanup);
+                }, 10000);
             }
             else if (status.status === 'complete') {
                 // Still processing zip, keep polling

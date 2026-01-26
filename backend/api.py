@@ -141,8 +141,9 @@ async def delayed_cleanup(task_id: str, zip_path: str, folder_path: str):
     """Background task to cleanup files after download has been sent"""
     import asyncio
     try:
-        # Wait 30 seconds to give the user time to download the file
-        await asyncio.sleep(30)
+        # Wait 60 seconds to give the user time to download the file
+        # The frontend will call the cleanup endpoint earlier if the download completes
+        await asyncio.sleep(60)
         
         print(f"[AUTO-CLEANUP] Starting cleanup for task {task_id}")
         
@@ -341,7 +342,7 @@ async def get_status(task_id: str):
     )
 
 @app.get("/api/download/zip/{task_id}")
-async def download_zip(task_id: str):
+async def download_zip(task_id: str, background_tasks: BackgroundTasks):
     """
     Download the zip file for a completed task
     """
@@ -356,6 +357,10 @@ async def download_zip(task_id: str):
     # Get the filename for the download
     filename = os.path.basename(zip_path)
     
+    # Schedule automatic cleanup after 60 seconds as fallback
+    # (in case frontend cleanup fails)
+    background_tasks.add_task(delayed_cleanup, task_id, zip_path, folder_path)
+    
     return FileResponse(
         path=zip_path,
         media_type="application/zip",
@@ -369,9 +374,11 @@ async def download_zip(task_id: str):
 async def cleanup_task(task_id: str):
     """
     Clean up zip file and downloaded folder for a task
+    Called by frontend when download is complete
     """
     if task_id not in zip_files:
-        raise HTTPException(status_code=404, detail="Task not found")
+        # Task might have already been cleaned up
+        return {"status": "already_cleaned", "message": "Task already cleaned or not found"}
     
     zip_path, folder_path = zip_files[task_id]
     
@@ -386,13 +393,14 @@ async def cleanup_task(task_id: str):
             shutil.rmtree(folder_path)
             print(f"[CLEANUP] Removed folder: {folder_path}")
         
-        # Remove from tracking
+        # Remove from tracking (this prevents the delayed_cleanup from running)
         del zip_files[task_id]
         if task_id in download_tasks:
             del download_tasks[task_id]
         
         return {"status": "cleaned", "message": "Files removed successfully"}
     except Exception as e:
+        print(f"[CLEANUP ERROR] Error during cleanup: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 @app.post("/api/formats")

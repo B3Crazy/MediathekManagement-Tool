@@ -11,6 +11,8 @@ from pydantic import BaseModel, HttpUrl
 from typing import List, Optional, Dict
 import uvicorn
 import os
+import sys
+import subprocess
 from pathlib import Path
 import uuid
 
@@ -261,6 +263,121 @@ async def check_tools():
         "yt_dlp": check_ytdlp(),
         "ffmpeg": check_ffmpeg()
     }
+
+class SearchRequest(BaseModel):
+    query: str
+    max_results: Optional[int] = 10
+
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
+
+# Store active search processes
+active_searches: Dict[str, subprocess.Popen] = {}
+
+@app.post("/api/search/youtube")
+async def search_youtube(request: SearchRequest):
+    """
+    Search YouTube for videos - streams results as they arrive
+    """
+    search_id = str(uuid.uuid4())
+    
+    async def generate_results():
+        try:
+            # Use JSON output for reliable parsing
+            process = subprocess.Popen(
+                [sys.executable, "-m", "yt_dlp", 
+                 f"ytsearch{request.max_results}:{request.query}",
+                 "--dump-single-json",
+                 "--no-warnings",
+                 "--flat-playlist",
+                 "--skip-download"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            # Store process so it can be cancelled
+            active_searches[search_id] = process
+            
+            try:
+                stdout, stderr = process.communicate(timeout=60)
+                
+                if process.returncode != 0:
+                    yield f"data: {{\"error\": \"Suche fehlgeschlagen: {stderr}\"}}\n\n"
+                    return
+                
+                # Parse JSON response
+                data = json.loads(stdout)
+                entries = data.get('entries', [])
+                
+                # Stream results one by one
+                for entry in entries:
+                    if not entry:
+                        continue
+                        
+                    video_id = entry.get('id', '')
+                    title = entry.get('title', 'Unbekannter Titel')
+                    duration = entry.get('duration_string', entry.get('duration', 'N/A'))
+                    
+                    # Format duration if it's a number
+                    if isinstance(duration, (int, float)):
+                        mins, secs = divmod(int(duration), 60)
+                        hours, mins = divmod(mins, 60)
+                        if hours > 0:
+                            duration = f"{hours}:{mins:02d}:{secs:02d}"
+                        else:
+                            duration = f"{mins}:{secs:02d}"
+                    
+                    # Get best thumbnail
+                    thumbnails = entry.get('thumbnails', [])
+                    thumbnail = thumbnails[-1]['url'] if thumbnails else ''
+                    
+                    video = {
+                        "title": title,
+                        "video_id": video_id,
+                        "url": f"https://www.youtube.com/watch?v={video_id}",
+                        "thumbnail": thumbnail,
+                        "duration": str(duration)
+                    }
+                    
+                    # Send video immediately
+                    yield f"data: {json.dumps(video)}\n\n"
+                    await asyncio.sleep(0.01)  # Small delay for streaming
+                
+                yield "data: {\"done\": true}\n\n"
+                
+            except subprocess.TimeoutExpired:
+                process.kill()
+                yield f"data: {{\"error\": \"Suche timeout\"}}\n\n"
+            finally:
+                if search_id in active_searches:
+                    del active_searches[search_id]
+                    
+        except Exception as e:
+            yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+    
+    return StreamingResponse(
+        generate_results(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-Search-ID": search_id
+        }
+    )
+
+@app.post("/api/search/cancel/{search_id}")
+async def cancel_search(search_id: str):
+    """
+    Cancel an ongoing search
+    """
+    if search_id in active_searches:
+        process = active_searches[search_id]
+        process.terminate()
+        del active_searches[search_id]
+        return {"status": "cancelled"}
+    return {"status": "not_found"}
 
 if __name__ == "__main__":
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

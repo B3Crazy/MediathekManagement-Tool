@@ -14,12 +14,29 @@
         </header>
 
         <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('video')">Video Download</button>
+            <button class="tab-button active" onclick="switchTab('search')">YouTube Suche</button>
+            <button class="tab-button" onclick="switchTab('video')">Video Download</button>
             <button class="tab-button" onclick="switchTab('audio')">Audio Download</button>
         </div>
 
+        <!-- Search Tab -->
+        <div id="search-tab" class="tab-content active">
+            <div class="section">
+                <h2>YouTube durchsuchen</h2>
+                <div class="url-input-group">
+                    <input type="text" id="search-input" placeholder="Suche nach Videos..." class="url-input">
+                    <button onclick="searchYoutube()" class="btn-primary">Suchen</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div id="search-status" class="search-status"></div>
+                <div id="search-results" class="search-results"></div>
+            </div>
+        </div>
+
         <!-- Video Tab -->
-        <div id="video-tab" class="tab-content active">
+        <div id="video-tab" class="tab-content">
             <div class="section">
                 <h2>Video Format</h2>
                 <div class="radio-group">

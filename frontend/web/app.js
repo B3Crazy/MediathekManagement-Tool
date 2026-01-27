@@ -1,5 +1,19 @@
-// Backend API URL
-const API_URL = 'http://localhost:8000';
+// Backend API URL - automatically detect based on current host
+function getApiUrl() {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If accessing via localhost or 127.0.0.1, use localhost for backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:8000';
+    }
+    
+    // Otherwise, use the same hostname with port 8000
+    return `${protocol}//${hostname}:8000`;
+}
+
+const API_URL = getApiUrl();
+console.log('Backend API URL:', API_URL);
 
 // State
 let videoUrls = [];
@@ -251,18 +265,45 @@ function pollVideoStatus() {
                 updateVideoCurrentStatus(status.current_file_message || '');
             }
             
-            if (status.status === 'complete') {
+            // Check if zip file is ready
+            if (status.zip_ready && status.download_url) {
+                // Stop polling immediately to prevent multiple downloads
                 clearInterval(interval);
+                
                 const button = document.getElementById('video-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
-                currentVideoTaskId = null;
                 
                 // Reset current file progress
                 updateVideoCurrentProgress(0);
                 updateVideoCurrentStatus('');
                 
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
+                // Update status message
+                updateVideoStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
+                
+                // Trigger download automatically without redirect
+                const zipUrl = `${API_URL}${status.download_url}`;
+                const link = document.createElement('a');
+                link.href = zipUrl;
+                link.download = '';  // Browser will use filename from Content-Disposition header
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Store task ID for cleanup
+                const taskIdForCleanup = currentVideoTaskId;
+                
+                // Reset task ID immediately to prevent re-triggering
+                currentVideoTaskId = null;
+                
+                // Cleanup on server after longer delay (10s to ensure browser completes download)
+                setTimeout(() => {
+                    cleanupTask(taskIdForCleanup);
+                }, 10000);
+            }
+            else if (status.status === 'complete') {
+                // Still processing zip, keep polling
+                updateVideoStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -351,18 +392,45 @@ function pollAudioStatus() {
                 updateAudioCurrentStatus(status.current_file_message || '');
             }
             
-            if (status.status === 'complete') {
+            // Check if zip file is ready
+            if (status.zip_ready && status.download_url) {
+                // Stop polling immediately to prevent multiple downloads
                 clearInterval(interval);
+                
                 const button = document.getElementById('audio-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
-                currentAudioTaskId = null;
                 
                 // Reset current file progress
                 updateAudioCurrentProgress(0);
                 updateAudioCurrentStatus('');
                 
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
+                // Update status message
+                updateAudioStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
+                
+                // Trigger download automatically without redirect
+                const zipUrl = `${API_URL}${status.download_url}`;
+                const link = document.createElement('a');
+                link.href = zipUrl;
+                link.download = '';  // Browser will use filename from Content-Disposition header
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Store task ID for cleanup
+                const taskIdForCleanup = currentAudioTaskId;
+                
+                // Reset task ID immediately to prevent re-triggering
+                currentAudioTaskId = null;
+                
+                // Cleanup on server after longer delay (10s to ensure browser completes download)
+                setTimeout(() => {
+                    cleanupTask(taskIdForCleanup);
+                }, 10000);
+            }
+            else if (status.status === 'complete') {
+                // Still processing zip, keep polling
+                updateAudioStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -518,6 +586,20 @@ function addToVideoList(url) {
         showNotification('Zur Video-Liste hinzugefügt');
     } else {
         showNotification('Bereits in Video-Liste vorhanden');
+    }
+}
+
+// Cleanup function to remove temporary files from server
+async function cleanupTask(taskId) {
+    if (!taskId) return;
+    
+    try {
+        await fetch(`${API_URL}/api/cleanup/${taskId}`, {
+            method: 'DELETE'
+        });
+        console.log(`Cleaned up task ${taskId}`);
+    } catch (error) {
+        console.error('Cleanup error:', error);
     }
 }
 

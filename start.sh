@@ -14,17 +14,28 @@ VENV_DIR="venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$VENV_DIR"
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0 ] || [ ! -f "$VENV_DIR/bin/activate" ]; then
         echo ""
         echo "Error creating virtual environment!"
-        echo "Please install python3-venv: sudo apt install python3-venv"
+        echo "Please run: apt install python3-venv python3-full"
+        echo "Or use the version-specific command: apt install python3.12-venv"
         read -p "Press Enter to continue..."
         exit 1
     fi
+    echo "Virtual environment created successfully!"
 fi
 
 # Activate virtual environment
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+    echo "Error: venv/bin/activate not found!"
+    echo "Please delete the venv folder and run this script again."
+    echo "Command: rm -rf venv"
+    read -p "Press Enter to continue..."
+    exit 1
+fi
+
 source "$VENV_DIR/bin/activate"
+echo "Using virtual environment: $VIRTUAL_ENV"
 
 echo "Step 1/3: Installing dependencies..."
 pip install -r requirements.txt
@@ -49,10 +60,21 @@ echo "Waiting for backend to start (5 seconds)..."
 sleep 5
 
 echo ""
-echo "Step 3/3: Starting desktop application..."
-cd frontend/desktop
-python mediathek_desktop.py
+echo "Step 3/3: Starting web interface..."
+cd frontend/web
+echo ""
+echo "Opening browser at http://localhost:8080"
+echo "Press Ctrl+C to stop the server"
+echo ""
+
+# Try to open browser
+xdg-open http://localhost:8080 2>/dev/null || \
+firefox http://localhost:8080 2>/dev/null || \
+chromium http://localhost:8080 2>/dev/null || \
+google-chrome http://localhost:8080 2>/dev/null &
+
+python -m http.server 8080 --bind 0.0.0.0
 
 echo ""
-echo "Application closed."
+echo "Server stopped."
 read -p "Press Enter to continue..."

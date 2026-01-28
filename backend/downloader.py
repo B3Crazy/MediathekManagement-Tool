@@ -245,25 +245,24 @@ class VideoDownloader(BaseDownloader):
         )
         
         error_output = []
-        if process.stdout:
-            for line in process.stdout:
-                line = line.strip()
-                if line:
-                    error_output.append(line)
-                
-                # Parse progress from yt-dlp output
-                if "[download]" in line and "%" in line:
-                    try:
-                        parts = line.split()
-                        for part in parts:
-                            if "%" in part:
-                                percent_str = part.replace("%", "")
-                                percent = float(percent_str)
-                                self.status.current_file_progress = percent
-                                self.status.current_file_message = f"Download: {percent:.1f}%"
-                                break
-                    except:
-                        pass
+        for line in process.stdout:
+            line = line.strip()
+            if line:
+                error_output.append(line)
+            
+            # Parse progress from yt-dlp output
+            if "[download]" in line and "%" in line:
+                try:
+                    parts = line.split()
+                    for part in parts:
+                        if "%" in part:
+                            percent_str = part.replace("%", "")
+                            percent = float(percent_str)
+                            self.status.current_file_progress = percent
+                            self.status.current_file_message = f"Download: {percent:.1f}%"
+                            break
+                except:
+                    pass
         
         process.wait(timeout=1800)
         
@@ -319,31 +318,30 @@ class AudioDownloader(BaseDownloader):
         error_output = []
         last_destination = None
         
-        if process.stdout:
-            for line in process.stdout:
-                line = line.strip()
-                if line:
-                    error_output.append(line)
-                
-                # Parse progress from yt-dlp output
-                if "[download]" in line and "%" in line:
-                    try:
-                        parts = line.split()
-                        for part in parts:
-                            if "%" in part:
-                                percent_str = part.replace("%", "")
-                                percent = float(percent_str)
-                                self.status.current_file_progress = percent
-                                self.status.current_file_message = f"Download: {percent:.1f}%"
-                                break
-                    except:
-                        pass
-                
-                # Capture destination
-                if 'Destination:' in line:
-                    m = re.search(r'Destination:\s*(.+)$', line)
-                    if m:
-                        last_destination = m.group(1).strip().strip('"')
+        for line in process.stdout:
+            line = line.strip()
+            if line:
+                error_output.append(line)
+            
+            # Parse progress from yt-dlp output
+            if "[download]" in line and "%" in line:
+                try:
+                    parts = line.split()
+                    for part in parts:
+                        if "%" in part:
+                            percent_str = part.replace("%", "")
+                            percent = float(percent_str)
+                            self.status.current_file_progress = percent
+                            self.status.current_file_message = f"Download: {percent:.1f}%"
+                            break
+                except:
+                    pass
+            
+            # Capture destination
+            if 'Destination:' in line:
+                m = re.search(r'Destination:\s*(.+)$', line)
+                if m:
+                    last_destination = m.group(1).strip().strip('"')
         
         process.wait(timeout=1800)
         

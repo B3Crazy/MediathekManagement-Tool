@@ -3,31 +3,30 @@ echo ========================================
 echo MediathekManagement-Tool - Quick Start
 echo ========================================
 echo.
-echo This script will start both the backend server
-echo and the desktop frontend application.
-echo.
 
 cd /d "%~dp0"
 
-echo Step 1/3: Installing dependencies...
-pip install -r requirements.txt
+echo Step 1/4: Checking and installing dependencies...
+echo.
+python backend\dependency_checker.py
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo Error installing dependencies!
+    echo Warning: Some dependencies might be missing!
+    echo The application may not work correctly.
+    echo.
     pause
-    exit /b 1
 )
 
 echo.
-echo Step 2/3: Starting backend server...
+echo Step 2/4: Starting backend server...
 start "MediathekManagement Backend" cmd /k "cd backend && python start_server.py"
 
 echo.
-echo Waiting for backend to start (5 seconds)...
+echo Step 3/4: Waiting for backend to start (5 seconds)...
 timeout /t 5 /nobreak >nul
 
 echo.
-echo Step 3/3: Starting web frontend...
+echo Step 4/4: Starting web frontend...
 cd frontend
 echo Opening web frontend at http://localhost:8080
 echo.

@@ -60,10 +60,21 @@ echo "Waiting for backend to start (5 seconds)..."
 sleep 5
 
 echo ""
-echo "Step 3/3: Starting desktop application..."
-cd frontend/desktop
-python mediathek_desktop.py
+echo "Step 3/3: Starting web interface..."
+cd frontend/web
+echo ""
+echo "Opening browser at http://localhost:8080"
+echo "Press Ctrl+C to stop the server"
+echo ""
+
+# Try to open browser
+xdg-open http://localhost:8080 2>/dev/null || \
+firefox http://localhost:8080 2>/dev/null || \
+chromium http://localhost:8080 2>/dev/null || \
+google-chrome http://localhost:8080 2>/dev/null &
+
+python -m http.server 8080 --bind 0.0.0.0
 
 echo ""
-echo "Application closed."
+echo "Server stopped."
 read -p "Press Enter to continue..."

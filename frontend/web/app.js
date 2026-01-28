@@ -1,5 +1,19 @@
-// Backend API URL
-const API_URL = 'http://localhost:8000';
+// Backend API URL - automatically detect based on current host
+function getApiUrl() {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If accessing via localhost or 127.0.0.1, use localhost for backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:8000';
+    }
+    
+    // Otherwise, use the same hostname with port 8000
+    return `${protocol}//${hostname}:8000`;
+}
+
+const API_URL = getApiUrl();
+console.log('Backend API URL:', API_URL);
 
 // State
 let videoUrls = [];
@@ -251,18 +265,32 @@ function pollVideoStatus() {
                 updateVideoCurrentStatus(status.current_file_message || '');
             }
             
-            if (status.status === 'complete') {
+            // Check if zip file is ready
+            if (status.zip_ready && status.download_url) {
                 clearInterval(interval);
                 const button = document.getElementById('video-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
-                currentVideoTaskId = null;
                 
                 // Reset current file progress
                 updateVideoCurrentProgress(0);
                 updateVideoCurrentStatus('');
                 
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
+                // Trigger download and show message
+                const zipUrl = `${API_URL}${status.download_url}`;
+                window.location.href = zipUrl;
+                
+                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
+                
+                // Clean up after a delay
+                setTimeout(() => {
+                    cleanupTask(currentVideoTaskId);
+                    currentVideoTaskId = null;
+                }, 5000);
+            }
+            else if (status.status === 'complete') {
+                // Still processing zip, keep polling
+                updateVideoStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -351,18 +379,32 @@ function pollAudioStatus() {
                 updateAudioCurrentStatus(status.current_file_message || '');
             }
             
-            if (status.status === 'complete') {
+            // Check if zip file is ready
+            if (status.zip_ready && status.download_url) {
                 clearInterval(interval);
                 const button = document.getElementById('audio-download-btn');
                 button.disabled = false;
                 button.textContent = 'Download starten';
-                currentAudioTaskId = null;
                 
                 // Reset current file progress
                 updateAudioCurrentProgress(0);
                 updateAudioCurrentStatus('');
                 
-                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}`);
+                // Trigger download and show message
+                const zipUrl = `${API_URL}${status.download_url}`;
+                window.location.href = zipUrl;
+                
+                alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
+                
+                // Clean up after a delay
+                setTimeout(() => {
+                    cleanupTask(currentAudioTaskId);
+                    currentAudioTaskId = null;
+                }, 5000);
+            }
+            else if (status.status === 'complete') {
+                // Still processing zip, keep polling
+                updateAudioStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -518,6 +560,20 @@ function addToVideoList(url) {
         showNotification('Zur Video-Liste hinzugefügt');
     } else {
         showNotification('Bereits in Video-Liste vorhanden');
+    }
+}
+
+// Cleanup function to remove temporary files from server
+async function cleanupTask(taskId) {
+    if (!taskId) return;
+    
+    try {
+        await fetch(`${API_URL}/api/cleanup/${taskId}`, {
+            method: 'DELETE'
+        });
+        console.log(`Cleaned up task ${taskId}`);
+    } catch (error) {
+        console.error('Cleanup error:', error);
     }
 }
 

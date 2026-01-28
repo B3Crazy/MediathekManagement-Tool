@@ -7,7 +7,6 @@ Provides REST API for video/audio downloads from YouTube
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional, Dict
 import uvicorn
@@ -16,9 +15,6 @@ import sys
 import subprocess
 from pathlib import Path
 import uuid
-import zipfile
-import shutil
-import time
 
 from downloader import VideoDownloader, AudioDownloader, DownloadStatus
 
@@ -35,9 +31,6 @@ app.add_middleware(
 
 # In-memory storage for download tasks (in production, use a database)
 download_tasks: Dict[str, DownloadStatus] = {}
-
-# Store zip file paths and folder paths for cleanup
-zip_files: Dict[str, tuple[str, str]] = {}  # task_id -> (zip_path, folder_path)
 
 # Helper function to create timestamped download folder (for web app only)
 def create_timestamped_folder(file_count: int) -> str:
@@ -86,56 +79,7 @@ def resolve_output_path(path: str) -> str:
             raise HTTPException(status_code=400, detail=f"Kann Ordner nicht erstellen: {str(e)}")
     
     return expanded_path
-def create_zip_file(folder_path: str, task_id: str) -> str:
-    """Create a zip file from the downloaded folder"""
-    try:
-        # Create zip file name based on folder name
-        folder_name = os.path.basename(folder_path)
-        zip_path = os.path.join(os.path.dirname(folder_path), f"{folder_name}.zip")
-        
-        # Create the zip file
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Walk through the folder
-            for root, dirs, files in os.walk(folder_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    # Add file to zip with relative path
-                    arcname = os.path.relpath(file_path, folder_path)
-                    zipf.write(file_path, arcname)
-        
-        # Store zip and folder paths for later cleanup
-        zip_files[task_id] = (zip_path, folder_path)
-        
-        print(f"[ZIP] Created zip file: {zip_path}")
-        return zip_path
-    except Exception as e:
-        print(f"[ZIP ERROR] Failed to create zip: {str(e)}")
-        raise
 
-async def create_zip_when_complete(task_id: str, folder_path: str):
-    """Background task to create zip file when download is complete"""
-    import asyncio
-    try:
-        # Wait for download to complete
-        max_wait = 300  # 5 minutes max
-        waited = 0
-        while waited < max_wait:
-            if task_id in download_tasks:
-                status = download_tasks[task_id]
-                if status.status == "complete":
-                    print(f"[ZIP] Download complete, creating zip for task {task_id}")
-                    # Create the zip file
-                    zip_path = create_zip_file(folder_path, task_id)
-                    # Update status message
-                    status.message = "Download complete - ZIP file ready"
-                    break
-                elif status.status == "error":
-                    print(f"[ZIP] Download failed, skipping zip creation for task {task_id}")
-                    break
-            await asyncio.sleep(1)
-            waited += 1
-    except Exception as e:
-        print(f"[ZIP ERROR] Error in zip creation task: {str(e)}")
 # Request/Response models
 class DownloadRequest(BaseModel):
     urls: List[HttpUrl]
@@ -158,8 +102,6 @@ class StatusResponse(BaseModel):
     current_file_progress: float
     current_file_message: str
     failed_urls: List[str]
-    zip_ready: bool = False
-    download_url: Optional[str] = None
 
 class FormatCheckRequest(BaseModel):
     url: HttpUrl
@@ -218,10 +160,6 @@ async def download_video(request: DownloadRequest, background_tasks: BackgroundT
     downloader = VideoDownloader(urls, request.format, output_path, status)
     background_tasks.add_task(downloader.download_all)
     
-    # Add zip creation task (only for web app with timestamped folders)
-    if request.use_timestamped_folder:
-        background_tasks.add_task(create_zip_when_complete, task_id, output_path)
-    
     return DownloadResponse(
         task_id=task_id,
         message=f"Video download task started with {len(urls)} URLs",
@@ -273,10 +211,6 @@ async def download_audio(request: DownloadRequest, background_tasks: BackgroundT
     downloader = AudioDownloader(urls, request.format, output_path, status)
     background_tasks.add_task(downloader.download_all)
     
-    # Add zip creation task (only for web app with timestamped folders)
-    if request.use_timestamped_folder:
-        background_tasks.add_task(create_zip_when_complete, task_id, output_path)
-    
     return DownloadResponse(
         task_id=task_id,
         message=f"Audio download task started with {len(urls)} URLs",
@@ -293,10 +227,6 @@ async def get_status(task_id: str):
     
     status = download_tasks[task_id]
     
-    # Check if zip file is ready
-    zip_ready = task_id in zip_files and status.status == "complete"
-    download_url = f"/api/download/zip/{task_id}" if zip_ready else None
-    
     return StatusResponse(
         task_id=task_id,
         status=status.status,
@@ -306,65 +236,8 @@ async def get_status(task_id: str):
         message=status.message,
         current_file_progress=status.current_file_progress,
         current_file_message=status.current_file_message,
-        failed_urls=status.failed_urls,
-        zip_ready=zip_ready,
-        download_url=download_url
+        failed_urls=status.failed_urls
     )
-
-@app.get("/api/download/zip/{task_id}")
-async def download_zip(task_id: str):
-    """
-    Download the zip file for a completed task
-    """
-    if task_id not in zip_files:
-        raise HTTPException(status_code=404, detail="ZIP file not found or not ready yet")
-    
-    zip_path, folder_path = zip_files[task_id]
-    
-    if not os.path.exists(zip_path):
-        raise HTTPException(status_code=404, detail="ZIP file not found on disk")
-    
-    # Get the filename for the download
-    filename = os.path.basename(zip_path)
-    
-    return FileResponse(
-        path=zip_path,
-        media_type="application/zip",
-        filename=filename,
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}"
-        }
-    )
-
-@app.delete("/api/cleanup/{task_id}")
-async def cleanup_task(task_id: str):
-    """
-    Clean up zip file and downloaded folder for a task
-    """
-    if task_id not in zip_files:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    zip_path, folder_path = zip_files[task_id]
-    
-    try:
-        # Remove zip file
-        if os.path.exists(zip_path):
-            os.remove(zip_path)
-            print(f"[CLEANUP] Removed zip: {zip_path}")
-        
-        # Remove downloaded folder
-        if os.path.exists(folder_path):
-            shutil.rmtree(folder_path)
-            print(f"[CLEANUP] Removed folder: {folder_path}")
-        
-        # Remove from tracking
-        del zip_files[task_id]
-        if task_id in download_tasks:
-            del download_tasks[task_id]
-        
-        return {"status": "cleaned", "message": "Files removed successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 @app.post("/api/formats")
 async def check_formats(request: FormatCheckRequest):

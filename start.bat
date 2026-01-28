@@ -27,9 +27,12 @@ echo Waiting for backend to start (5 seconds)...
 timeout /t 5 /nobreak >nul
 
 echo.
-echo Step 3/3: Starting desktop application...
-cd frontend\desktop
-python mediathek_desktop.py
+echo Step 3/3: Starting web frontend...
+cd frontend
+echo Opening web frontend at http://localhost:8080
+echo.
+start "" "http://localhost:8080"
+python -m http.server 8080 --bind 0.0.0.0
 
 echo.
 echo Application closed.

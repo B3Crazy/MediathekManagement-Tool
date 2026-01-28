@@ -17,6 +17,9 @@ from pathlib import Path
 from typing import List, Optional
 from dataclasses import dataclass, field
 
+# Import browser cookie manager
+from browser_manager import BrowserCookieManager
+
 # Configure logging
 project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 log_file = os.path.join(project_dir, "backend", "logging", "downloader.log")
@@ -29,6 +32,10 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     force=True
 )
+
+# Create module-level singleton for browser cookie manager
+# This ensures browser detection only happens once
+_cookie_manager = BrowserCookieManager()
 
 @dataclass
 class DownloadStatus:
@@ -202,10 +209,16 @@ class VideoDownloader(BaseDownloader):
             return "best[vcodec!=none][ext=mp4]/best[vcodec!=none]"
     
     def _download_single(self, url: str, idx: int, attempt: int, max_retries: int):
-        """Download a single video"""
-        output_template = os.path.join(self.output_path, "%(title)s.%(ext)s")
+        """Download a single video with adaptive strategy"""
+        output_template = "%(title)s.%(ext)s"
         format_str = self._get_format_string()
         
+        # Use module-level cookie manager (already initialized with cached browser)
+        strategy = _cookie_manager.get_download_args(attempt)
+        
+        logging.info(f"Attempt {attempt}/{max_retries} - Strategy: {strategy['description']}")
+        
+        # Build base command
         cmd = [
             sys.executable, "-m", "yt_dlp",
             "-f", format_str,
@@ -219,6 +232,14 @@ class VideoDownloader(BaseDownloader):
             "--no-post-overwrites",
         ]
         
+        # Add strategy-specific arguments
+        cmd.extend(strategy["cookies"])
+        cmd.extend(strategy["client"])
+        cmd.extend(strategy["ipv4"])
+        cmd.extend(strategy["po_token"])
+        cmd.extend(strategy["extra"])
+        
+        # Add ffmpeg options
         if check_ffmpeg():
             cmd += [
                 "--merge-output-format", self.format_type,
@@ -230,17 +251,24 @@ class VideoDownloader(BaseDownloader):
         
         cmd.append(url)
         
+        # Debug logging
+        logging.debug(f"Command: {' '.join(cmd)}")
+        logging.debug(f"Working directory: {self.output_path}")
+        logging.debug(f"Output template: {output_template}")
+        
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            universal_newlines=True
+            universal_newlines=True,
+            cwd=self.output_path
         )
         
         error_output = []
         has_download_error = False
+        bot_detected = False
         has_post_processing_error = False
         
         if process.stdout:
@@ -248,6 +276,11 @@ class VideoDownloader(BaseDownloader):
                 line = line.strip()
                 if line:
                     error_output.append(line)
+                    
+                    # Detect bot-protection error
+                    if "Sign in to confirm you're not a bot" in line:
+                        bot_detected = True
+                        logging.warning("⚠ Bot-protection detected!")
                     
                     # Track actual download errors vs post-processing errors
                     if "ERROR:" in line:
@@ -265,7 +298,7 @@ class VideoDownloader(BaseDownloader):
                                 percent_str = part.replace("%", "")
                                 percent = float(percent_str)
                                 self.status.current_file_progress = percent
-                                self.status.current_file_message = f"Download: {percent:.1f}%"
+                                self.status.current_file_message = f"Download: {percent:.1f}% ({strategy['description']})"
                                 break
                     except:
                         pass
@@ -278,27 +311,43 @@ class VideoDownloader(BaseDownloader):
             video_files = [f for f in os.listdir(output_dir) 
                           if f.lower().endswith(('.mp4', '.mkv', '.webm', '.avi'))]
             if video_files:
-                # Video file exists, consider it success even with post-processing errors
                 if has_post_processing_error:
-                    logging.warning(f"Post-processing errors ignored for {url}")
+                    logging.warning(f"✓ Video downloaded (post-processing errors ignored)")
+                else:
+                    logging.info(f"✓ Video downloaded successfully with strategy: {strategy['description']}")
                 return
         
-        # Only fail if there's a real download error or no video file was created
-        if process.returncode != 0 or has_download_error:
+        # Build error message
+        if bot_detected:
+            err = cookie_mgr.get_user_message()
+        elif has_download_error:
             err = "\n".join(error_output[-10:]) if error_output else "Unknown error"
-            raise Exception(f"Download failed: {err}")
+        else:
+            err = "Download completed but no video file found"
+        
+        # Log detailed error
+        logging.error(f"✗ Download failed (attempt {attempt}/{max_retries}): {err[:200]}")
+        
+        raise Exception(f"Download failed: {err}")
+
 
 class AudioDownloader(BaseDownloader):
     """Download audio from YouTube"""
     
     def _download_single(self, url: str, idx: int, attempt: int, max_retries: int):
-        """Download a single audio file"""
-        output_template = os.path.join(self.output_path, "%(title)s.%(ext)s")
+        """Download a single audio file with adaptive strategy"""
+        output_template = "%(title)s.%(ext)s"
         output_dir = self.output_path
         
         # Get files before download
         files_before = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
         
+        # Use module-level cookie manager (already initialized with cached browser)
+        strategy = _cookie_manager.get_download_args(attempt)
+        
+        logging.info(f"Attempt {attempt}/{max_retries} - Strategy: {strategy['description']}")
+        
+        # Build base command
         cmd = [
             sys.executable, "-m", "yt_dlp",
             "-f", "bestaudio/best",
@@ -312,6 +361,13 @@ class AudioDownloader(BaseDownloader):
             "--add-metadata",
         ]
         
+        # Add strategy-specific arguments
+        cmd.extend(strategy["cookies"])
+        cmd.extend(strategy["client"])
+        cmd.extend(strategy["ipv4"])
+        cmd.extend(strategy["po_token"])
+        cmd.extend(strategy["extra"])
+        
         # Add metadata/thumbnail for non-WAV formats
         if self.format_type.lower() != "wav":
             cmd += [
@@ -324,24 +380,36 @@ class AudioDownloader(BaseDownloader):
         
         cmd.append(url)
         
+        # Debug logging
+        logging.debug(f"Command: {' '.join(cmd)}")
+        logging.debug(f"Working directory: {self.output_path}")
+        logging.debug(f"Output template: {output_template}")
+        
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            universal_newlines=True
+            universal_newlines=True,
+            cwd=self.output_path
         )
         
         error_output = []
         last_destination = None
         has_post_processing_error = False
+        bot_detected = False
         
         if process.stdout:
             for line in process.stdout:
                 line = line.strip()
                 if line:
                     error_output.append(line)
+                    
+                    # Detect bot-protection error
+                    if "Sign in to confirm you're not a bot" in line:
+                        bot_detected = True
+                        logging.warning("⚠ Bot-protection detected!")
                     
                     # Track post-processing errors separately
                     if "ERROR:" in line and ("Postprocessing" in line or "thumbnail" in line.lower()):
@@ -356,7 +424,7 @@ class AudioDownloader(BaseDownloader):
                                 percent_str = part.replace("%", "")
                                 percent = float(percent_str)
                                 self.status.current_file_progress = percent
-                                self.status.current_file_message = f"Download: {percent:.1f}%"
+                                self.status.current_file_message = f"Download: {percent:.1f}% ({strategy['description']})"
                                 break
                     except:
                         pass
@@ -407,10 +475,19 @@ class AudioDownloader(BaseDownloader):
         # Success if new audio file created OR destination exists (ignore post-processing errors)
         if new_audio_files or dest_ok:
             if has_post_processing_error:
-                logging.warning(f"Audio post-processing errors ignored for {url}")
+                logging.warning(f"✓ Audio downloaded (post-processing errors ignored)")
+            else:
+                logging.info(f"✓ Audio downloaded successfully with strategy: {strategy['description']}")
             return
         
-        # Only fail if no audio file was created
-        if process.returncode != 0 or not (new_audio_files or dest_ok):
+        # Build error message
+        if bot_detected:
+            err = cookie_mgr.get_user_message()
+        else:
             err = "\n".join(error_output[-10:]) if error_output else "Unknown error"
-            raise Exception(f"Download failed: {err}")
+        
+        # Log detailed error
+        logging.error(f"✗ Download failed (attempt {attempt}/{max_retries}): {err[:200]}")
+        
+        raise Exception(f"Download failed: {err}")
+

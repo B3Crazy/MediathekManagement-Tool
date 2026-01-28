@@ -1,2 +1,0 @@
-# Desktop Frontend Requirements
-requests>=2.31.0

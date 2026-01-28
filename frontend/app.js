@@ -62,24 +62,42 @@ function switchTab(tab) {
 
 // Backend status check
 async function checkBackendStatus() {
+    const statusEl = document.getElementById('backend-status');
+    const indicatorEl = document.getElementById('backend-indicator');
+    
     try {
-        const response = await fetch(`${API_URL}/health`, { method: 'GET' });
-        const statusEl = document.getElementById('backend-status');
-        const indicatorEl = document.getElementById('backend-indicator');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
+        const response = await fetch(`${API_URL}/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
             statusEl.classList.add('online');
             statusEl.classList.remove('offline');
             indicatorEl.textContent = 'Online ✓';
         } else {
-            throw new Error('Backend not healthy');
+            throw new Error(`Backend not healthy: ${response.status}`);
         }
     } catch (error) {
-        const statusEl = document.getElementById('backend-status');
-        const indicatorEl = document.getElementById('backend-indicator');
         statusEl.classList.add('offline');
         statusEl.classList.remove('online');
-        indicatorEl.textContent = 'Offline ✗';
+        
+        if (error.name === 'AbortError') {
+            indicatorEl.textContent = 'Offline ✗ (Timeout)';
+            console.error('Backend health check timeout after 15s - retrying in 10s', 'URL:', `${API_URL}/health`);
+        } else {
+            indicatorEl.textContent = 'Offline ✗';
+            console.error('Backend health check error:', error.message, 'URL:', `${API_URL}/health`);
+        }
+        // Automatic retry after 10 seconds for all errors
+        setTimeout(checkBackendStatus, 10000);
     }
 }
 
@@ -265,9 +283,9 @@ function pollVideoStatus() {
                 updateVideoCurrentStatus(status.current_file_message || '');
             }
             
-            // Check if zip file is ready
-            if (status.zip_ready && status.download_url) {
-                // Stop polling immediately to prevent multiple downloads
+            // Check if download is complete
+            if (status.status === 'complete') {
+                // Stop polling
                 clearInterval(interval);
                 
                 const button = document.getElementById('video-download-btn');
@@ -281,29 +299,8 @@ function pollVideoStatus() {
                 // Update status message
                 updateVideoStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
                 
-                // Trigger download automatically without redirect
-                const zipUrl = `${API_URL}${status.download_url}`;
-                const link = document.createElement('a');
-                link.href = zipUrl;
-                link.download = '';  // Browser will use filename from Content-Disposition header
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // Store task ID for cleanup
-                const taskIdForCleanup = currentVideoTaskId;
-                
-                // Reset task ID immediately to prevent re-triggering
+                // Reset task ID
                 currentVideoTaskId = null;
-                
-                // Cleanup on server after longer delay (10s to ensure browser completes download)
-                setTimeout(() => {
-                    cleanupTask(taskIdForCleanup);
-                }, 10000);
-            }
-            else if (status.status === 'complete') {
-                // Still processing zip, keep polling
-                updateVideoStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -392,9 +389,9 @@ function pollAudioStatus() {
                 updateAudioCurrentStatus(status.current_file_message || '');
             }
             
-            // Check if zip file is ready
-            if (status.zip_ready && status.download_url) {
-                // Stop polling immediately to prevent multiple downloads
+            // Check if download is complete
+            if (status.status === 'complete') {
+                // Stop polling
                 clearInterval(interval);
                 
                 const button = document.getElementById('audio-download-btn');
@@ -408,29 +405,8 @@ function pollAudioStatus() {
                 // Update status message
                 updateAudioStatus(`Download abgeschlossen! Fehlgeschlagen: ${status.failed_urls.length}`);
                 
-                // Trigger download automatically without redirect
-                const zipUrl = `${API_URL}${status.download_url}`;
-                const link = document.createElement('a');
-                link.href = zipUrl;
-                link.download = '';  // Browser will use filename from Content-Disposition header
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // Store task ID for cleanup
-                const taskIdForCleanup = currentAudioTaskId;
-                
-                // Reset task ID immediately to prevent re-triggering
+                // Reset task ID
                 currentAudioTaskId = null;
-                
-                // Cleanup on server after longer delay (10s to ensure browser completes download)
-                setTimeout(() => {
-                    cleanupTask(taskIdForCleanup);
-                }, 10000);
-            }
-            else if (status.status === 'complete') {
-                // Still processing zip, keep polling
-                updateAudioStatus('Erstelle ZIP-Datei...');
             }
         } catch (error) {
             console.error('Error polling status:', error);
@@ -480,11 +456,16 @@ async function searchYoutube() {
     const statusEl = document.getElementById('search-status');
     const resultsEl = document.getElementById('search-results');
     
-    statusEl.textContent = 'Suche läuft...';
+    statusEl.innerHTML = '<span class="spinner"></span> Suche läuft...';
     resultsEl.innerHTML = '';
     currentResultCount = 0;
     
     currentSearchController = new AbortController();
+    
+    // Set 30-second timeout for search
+    const searchTimeoutId = setTimeout(() => {
+        currentSearchController.abort();
+    }, 30000);
     
     try {
         const response = await fetch(`${API_URL}/api/search/youtube`, {
@@ -500,42 +481,55 @@ async function searchYoutube() {
         
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = ''; // Buffer for incomplete lines
         
         while (true) {
             const { done, value } = await reader.read();
             
             if (done) break;
             
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            
+            const lines = buffer.split('\n');
+            // Keep the last potentially incomplete line in the buffer
+            buffer = lines.pop() || '';
             
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                    const data = JSON.parse(line.substring(6));
-                    
-                    if (data.error) {
-                        statusEl.textContent = `Fehler: ${data.error}`;
-                        break;
-                    }
-                    
-                    if (data.done) {
-                        statusEl.textContent = `${currentResultCount} Ergebnisse gefunden`;
-                        currentSearchController = null;
-                        break;
-                    }
-                    
-                    if (data.title) {
-                        appendSearchResult(data);
-                        currentResultCount++;
-                        statusEl.textContent = `${currentResultCount} Ergebnisse gefunden...`;
+                    try {
+                        const data = JSON.parse(line.substring(6));
+                        
+                        if (data.error) {
+                            statusEl.innerHTML = `Fehler: ${data.error}`;
+                            clearTimeout(searchTimeoutId);
+                            break;
+                        }
+                        
+                        if (data.done) {
+                            statusEl.textContent = `${currentResultCount} Ergebnisse gefunden`;
+                            currentSearchController = null;
+                            clearTimeout(searchTimeoutId);
+                            break;
+                        }
+                        
+                        if (data.title) {
+                            appendSearchResult(data);
+                            currentResultCount++;
+                            statusEl.innerHTML = `<span class="spinner"></span> ${currentResultCount} Ergebnisse gefunden...`;
+                        }
+                    } catch (parseError) {
+                        console.error('Failed to parse SSE data:', line, parseError);
                     }
                 }
             }
         }
         
     } catch (error) {
+        clearTimeout(searchTimeoutId);
+        
         if (error.name === 'AbortError') {
-            statusEl.textContent = 'Suche abgebrochen';
+            statusEl.textContent = 'Suche hat zu lange gedauert (Timeout nach 30s)';
         } else {
             statusEl.textContent = `Fehler: ${error.message}`;
             console.error('Search error:', error);
@@ -589,19 +583,6 @@ function addToVideoList(url) {
     }
 }
 
-// Cleanup function to remove temporary files from server
-async function cleanupTask(taskId) {
-    if (!taskId) return;
-    
-    try {
-        await fetch(`${API_URL}/api/cleanup/${taskId}`, {
-            method: 'DELETE'
-        });
-        console.log(`Cleaned up task ${taskId}`);
-    } catch (error) {
-        console.error('Cleanup error:', error);
-    }
-}
 
 function addToAudioList(url) {
     if (!audioUrls.includes(url)) {

@@ -47,7 +47,7 @@ def check_ytdlp() -> bool:
     """Check if yt-dlp is available"""
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "yt_dlp", "--version"],
+            ["yt-dlp", "--version"],
             capture_output=True,
             text=True,
             timeout=10
@@ -73,7 +73,7 @@ def check_available_formats(url: str) -> str:
     """Check available formats for a URL"""
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "yt_dlp", "--list-formats", url],
+            ["yt-dlp", "--list-formats", url],
             capture_output=True,
             text=True,
             timeout=60
@@ -194,12 +194,19 @@ class VideoDownloader(BaseDownloader):
     def _get_format_string(self) -> str:
         """Get format string based on whether ffmpeg is available"""
         if check_ffmpeg():
-            # With ffmpeg: explicitly select video+audio streams and merge
-            # Never fallback to audio-only formats
-            return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/bestvideo[ext=mp4]+bestaudio"
+            # With ffmpeg: can merge separate streams for 4K/8K
+            return (
+                "bv*[height>=4320][ext=mp4]+ba[ext=m4a]/"
+                "bv*[height>=2160][ext=mp4]+ba[ext=m4a]/"
+                "bv*[height>=1080][ext=mp4]+ba[ext=m4a]/"
+                "bv*+ba/b"
+            )
         else:
-            # Without ffmpeg: get best pre-merged format with video codec
-            return "best[vcodec!=none][ext=mp4]/best[vcodec!=none]"
+            # Without ffmpeg: progressive downloads only
+            if self.format_type == "mp4":
+                return "b[ext=mp4][height>=720]/b[ext=mp4]/b"
+            else:
+                return "b[height>=720]/b"
     
     def _download_single(self, url: str, idx: int, attempt: int, max_retries: int):
         """Download a single video"""
@@ -207,16 +214,14 @@ class VideoDownloader(BaseDownloader):
         format_str = self._get_format_string()
         
         cmd = [
-            sys.executable, "-m", "yt_dlp",
+            "yt-dlp",
             "-f", format_str,
             "-o", output_template,
             "--no-playlist",
             "--newline",
             "--cache-dir", self.cache_dir,
             "--embed-thumbnail",
-            "--convert-thumbnails", "jpg",
             "--embed-metadata",
-            "--no-post-overwrites",
         ]
         
         if check_ffmpeg():
@@ -240,21 +245,11 @@ class VideoDownloader(BaseDownloader):
         )
         
         error_output = []
-        has_download_error = False
-        has_post_processing_error = False
-        
         if process.stdout:
             for line in process.stdout:
                 line = line.strip()
                 if line:
                     error_output.append(line)
-                    
-                    # Track actual download errors vs post-processing errors
-                    if "ERROR:" in line:
-                        if "Postprocessing" in line or "EmbedThumbnail" in line or "thumbnail" in line.lower():
-                            has_post_processing_error = True
-                        else:
-                            has_download_error = True
                 
                 # Parse progress from yt-dlp output
                 if "[download]" in line and "%" in line:
@@ -272,19 +267,7 @@ class VideoDownloader(BaseDownloader):
         
         process.wait(timeout=1800)
         
-        # Check if a video file was actually created
-        output_dir = self.output_path
-        if os.path.isdir(output_dir):
-            video_files = [f for f in os.listdir(output_dir) 
-                          if f.lower().endswith(('.mp4', '.mkv', '.webm', '.avi'))]
-            if video_files:
-                # Video file exists, consider it success even with post-processing errors
-                if has_post_processing_error:
-                    logging.warning(f"Post-processing errors ignored for {url}")
-                return
-        
-        # Only fail if there's a real download error or no video file was created
-        if process.returncode != 0 or has_download_error:
+        if process.returncode != 0:
             err = "\n".join(error_output[-10:]) if error_output else "Unknown error"
             raise Exception(f"Download failed: {err}")
 
@@ -300,7 +283,7 @@ class AudioDownloader(BaseDownloader):
         files_before = set(os.listdir(output_dir)) if os.path.isdir(output_dir) else set()
         
         cmd = [
-            sys.executable, "-m", "yt_dlp",
+            "yt-dlp",
             "-f", "bestaudio/best",
             "-x",
             "--audio-format", self.format_type,
@@ -335,17 +318,12 @@ class AudioDownloader(BaseDownloader):
         
         error_output = []
         last_destination = None
-        has_post_processing_error = False
         
         if process.stdout:
             for line in process.stdout:
                 line = line.strip()
                 if line:
                     error_output.append(line)
-                    
-                    # Track post-processing errors separately
-                    if "ERROR:" in line and ("Postprocessing" in line or "thumbnail" in line.lower()):
-                        has_post_processing_error = True
                 
                 # Parse progress from yt-dlp output
                 if "[download]" in line and "%" in line:
@@ -404,13 +382,7 @@ class AudioDownloader(BaseDownloader):
                     except Exception:
                         pass
         
-        # Success if new audio file created OR destination exists (ignore post-processing errors)
-        if new_audio_files or dest_ok:
-            if has_post_processing_error:
-                logging.warning(f"Audio post-processing errors ignored for {url}")
-            return
-        
-        # Only fail if no audio file was created
-        if process.returncode != 0 or not (new_audio_files or dest_ok):
+        # Success if return code is 0 OR new audio file created OR destination exists
+        if process.returncode != 0 and not new_audio_files and not dest_ok:
             err = "\n".join(error_output[-10:]) if error_output else "Unknown error"
             raise Exception(f"Download failed: {err}")

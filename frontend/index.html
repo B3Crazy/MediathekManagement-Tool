@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediathekManagement-Tool - Web</title>
+    <link rel="stylesheet" href="themes.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -154,6 +155,16 @@
         </div>
 
         <footer>
+            <div class="theme-selector">
+                <label for="theme-select">🎨 Theme:</label>
+                <select id="theme-select" onchange="changeTheme()">
+                    <option value="pride">🏳️‍🌈 Pride</option>
+                    <option value="trans">🏳️‍⚧️ Trans</option>
+                    <option value="lesbian">🧡 Lesbian</option>
+                    <option value="forest">🌲 Forest</option>
+                    <option value="ocean">🌊 Ocean</option>
+                </select>
+            </div>
             <div id="backend-status" class="backend-status">
                 Backend-Status: <span id="backend-indicator">Prüfen...</span>
             </div>

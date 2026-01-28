@@ -30,6 +30,7 @@ const getDefaultDownloadPath = () => {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
     checkBackendStatus();
     setInterval(checkBackendStatus, 10000); // Check every 10 seconds
     
@@ -44,6 +45,70 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') searchYoutube();
     });
 });
+
+// ============================================
+// THEME MANAGEMENT
+// ============================================
+
+function initializeTheme() {
+    // Check if user has a saved theme preference
+    const savedTheme = localStorage.getItem('selectedTheme') || 'pride';
+    
+    // Detect system color scheme preference
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const mode = prefersDark ? 'dark' : 'light';
+    
+    // Apply theme
+    applyTheme(savedTheme, mode);
+    
+    // Set dropdown value
+    document.getElementById('theme-select').value = savedTheme;
+    
+    // Listen for system color scheme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        const currentTheme = localStorage.getItem('selectedTheme') || 'pride';
+        const newMode = e.matches ? 'dark' : 'light';
+        applyTheme(currentTheme, newMode);
+    });
+}
+
+function changeTheme() {
+    const theme = document.getElementById('theme-select').value;
+    
+    // Save preference
+    localStorage.setItem('selectedTheme', theme);
+    
+    // Detect current mode
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const mode = prefersDark ? 'dark' : 'light';
+    
+    // Apply theme
+    applyTheme(theme, mode);
+    
+    // Show notification
+    showNotification(`Theme geändert zu: ${getThemeName(theme)}`);
+}
+
+function applyTheme(theme, mode) {
+    const html = document.documentElement;
+    html.setAttribute('data-theme', theme);
+    html.setAttribute('data-mode', mode);
+}
+
+function getThemeName(theme) {
+    const themeNames = {
+        'pride': '🏳️‍🌈 Pride',
+        'trans': '🏳️‍⚧️ Trans',
+        'lesbian': '🧡 Lesbian',
+        'forest': '🌲 Forest',
+        'ocean': '🌊 Ocean'
+    };
+    return themeNames[theme] || theme;
+}
+
+// ============================================
+// END THEME MANAGEMENT
+// ============================================
 
 // Tab switching
 function switchTab(tab) {

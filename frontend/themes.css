@@ -1,0 +1,439 @@
+/* ================================================
+   Theme System - MediathekManagement-Tool
+   Farbdefinitionen für alle Themes
+   ================================================ */
+
+/* ================================================
+   PRIDE THEME - Light Mode (Default)
+   Regenbogen-Farben mit leuchtenden Akzenten
+   ================================================ */
+:root {
+    /* Primary Colors */
+    --color-primary: #e91e63;
+    --color-secondary: #9c27b0;
+    --color-gradient-start: #e91e63;
+    --color-gradient-end: #9c27b0;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #e91e63 0%, #9c27b0 50%, #2196f3 100%);
+    --color-bg-main: #ffffff;
+    --color-bg-section: #f5f5f5;
+    --color-bg-input: #f9f9f9;
+    --color-bg-tabs: #f5f5f5;
+    --color-bg-footer: #f5f5f5;
+    --color-bg-hover: #e8e8e8;
+    
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #4d4d4d;
+    --color-text-hint: #808080;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #d0d0d0;
+    --color-border-focus: #e91e63;
+    
+    /* Accents */
+    --color-accent-success: #2ecc71;
+    --color-accent-error: #ff4757;
+    --color-accent-error-hover: #ff3838;
+    --color-accent-warning: #f39c12;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 5px 15px rgba(233, 30, 99, 0.4);
+    --shadow-button: 0 10px 25px rgba(233, 30, 99, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #e91e63 0%, #9c27b0 100%);
+    --gradient-progress: linear-gradient(90deg, #e91e63 0%, #9c27b0 100%);
+}
+
+/* ================================================
+   PRIDE THEME - Dark Mode
+   ================================================ */
+[data-theme="pride"][data-mode="dark"] {
+    /* Primary Colors */
+    --color-primary: #ff4081;
+    --color-secondary: #ba68c8;
+    --color-gradient-start: #ff4081;
+    --color-gradient-end: #ba68c8;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #1a0a14 0%, #1a0a1a 50%, #0a0f1a 100%);
+    --color-bg-main: #1e1e1e;
+    --color-bg-section: #2a2a2a;
+    --color-bg-input: #333333;
+    --color-bg-tabs: #2a2a2a;
+    --color-bg-footer: #2a2a2a;
+    --color-bg-hover: #3a3a3a;
+    
+    /* Text Colors */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8c8c8;
+    --color-text-hint: #999999;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #404040;
+    --color-border-medium: #505050;
+    --color-border-focus: #ff4081;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 5px 15px rgba(255, 64, 129, 0.4);
+    --shadow-button: 0 10px 25px rgba(255, 64, 129, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #ff4081 0%, #ba68c8 100%);
+    --gradient-progress: linear-gradient(90deg, #ff4081 0%, #ba68c8 100%);
+}
+
+/* ================================================
+   TRANS THEME - Light Mode
+   Hellblau, Rosa, Weiß
+   ================================================ */
+[data-theme="trans"] {
+    /* Primary Colors */
+    --color-primary: #5bcefa;
+    --color-secondary: #f5a9b8;
+    --color-gradient-start: #5bcefa;
+    --color-gradient-end: #f5a9b8;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #5bcefa 0%, #ffffff 50%, #f5a9b8 100%);
+    --color-bg-main: #ffffff;
+    --color-bg-section: #f5f5f5;
+    --color-bg-input: #f9f9f9;
+    --color-bg-tabs: #f5f5f5;
+    --color-bg-footer: #f5f5f5;
+    --color-bg-hover: #e8e8e8;
+    
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #4d4d4d;
+    --color-text-hint: #808080;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #d0d0d0;
+    --color-border-focus: #5bcefa;
+    
+    /* Accents */
+    --color-accent-success: #2ecc71;
+    --color-accent-error: #ff4757;
+    --color-accent-error-hover: #ff3838;
+    --color-accent-warning: #f39c12;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 5px 15px rgba(91, 206, 250, 0.4);
+    --shadow-button: 0 10px 25px rgba(91, 206, 250, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #5bcefa 0%, #f5a9b8 100%);
+    --gradient-progress: linear-gradient(90deg, #5bcefa 0%, #f5a9b8 100%);
+}
+
+/* ================================================
+   TRANS THEME - Dark Mode
+   ================================================ */
+[data-theme="trans"][data-mode="dark"] {
+    /* Primary Colors */
+    --color-primary: #7dd9ff;
+    --color-secondary: #ffb3c6;
+    --color-gradient-start: #7dd9ff;
+    --color-gradient-end: #ffb3c6;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #0a1820 0%, #1a1a1a 50%, #201018 100%);
+    --color-bg-main: #1e1e1e;
+    --color-bg-section: #2a2a2a;
+    --color-bg-input: #333333;
+    --color-bg-tabs: #2a2a2a;
+    --color-bg-footer: #2a2a2a;
+    --color-bg-hover: #3a3a3a;
+    
+    /* Text Colors */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8c8c8;
+    --color-text-hint: #999999;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #404040;
+    --color-border-medium: #505050;
+    --color-border-focus: #7dd9ff;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 5px 15px rgba(125, 217, 255, 0.4);
+    --shadow-button: 0 10px 25px rgba(125, 217, 255, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #7dd9ff 0%, #ffb3c6 100%);
+    --gradient-progress: linear-gradient(90deg, #7dd9ff 0%, #ffb3c6 100%);
+}
+
+/* ================================================
+   LESBIAN THEME - Light Mode
+   Orange, Rosa, Magenta
+   ================================================ */
+[data-theme="lesbian"] {
+    /* Primary Colors */
+    --color-primary: #ff6b9d;
+    --color-secondary: #ffa64d;
+    --color-gradient-start: #ff6b9d;
+    --color-gradient-end: #ffa64d;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #d62900 0%, #ff6b9d 50%, #ffa64d 100%);
+    --color-bg-main: #ffffff;
+    --color-bg-section: #f5f5f5;
+    --color-bg-input: #f9f9f9;
+    --color-bg-tabs: #f5f5f5;
+    --color-bg-footer: #f5f5f5;
+    --color-bg-hover: #e8e8e8;
+    
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #4d4d4d;
+    --color-text-hint: #808080;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #d0d0d0;
+    --color-border-focus: #ff6b9d;
+    
+    /* Accents */
+    --color-accent-success: #2ecc71;
+    --color-accent-error: #ff4757;
+    --color-accent-error-hover: #ff3838;
+    --color-accent-warning: #f39c12;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 5px 15px rgba(255, 107, 157, 0.4);
+    --shadow-button: 0 10px 25px rgba(255, 107, 157, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #ff6b9d 0%, #ffa64d 100%);
+    --gradient-progress: linear-gradient(90deg, #ff6b9d 0%, #ffa64d 100%);
+}
+
+/* ================================================
+   LESBIAN THEME - Dark Mode
+   ================================================ */
+[data-theme="lesbian"][data-mode="dark"] {
+    /* Primary Colors */
+    --color-primary: #ff85b3;
+    --color-secondary: #ffb366;
+    --color-gradient-start: #ff85b3;
+    --color-gradient-end: #ffb366;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #1a0800 0%, #1a0a14 50%, #1a1008 100%);
+    --color-bg-main: #1e1e1e;
+    --color-bg-section: #2a2a2a;
+    --color-bg-input: #333333;
+    --color-bg-tabs: #2a2a2a;
+    --color-bg-footer: #2a2a2a;
+    --color-bg-hover: #3a3a3a;
+    
+    /* Text Colors */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8c8c8;
+    --color-text-hint: #999999;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #404040;
+    --color-border-medium: #505050;
+    --color-border-focus: #ff85b3;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 5px 15px rgba(255, 133, 179, 0.4);
+    --shadow-button: 0 10px 25px rgba(255, 133, 179, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #ff85b3 0%, #ffb366 100%);
+    --gradient-progress: linear-gradient(90deg, #ff85b3 0%, #ffb366 100%);
+}
+
+/* ================================================
+   FOREST THEME - Light Mode
+   Natürliche Grüntöne
+   ================================================ */
+[data-theme="forest"] {
+    /* Primary Colors */
+    --color-primary: #27ae60;
+    --color-secondary: #16a085;
+    --color-gradient-start: #27ae60;
+    --color-gradient-end: #16a085;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #27ae60 0%, #16a085 100%);
+    --color-bg-main: #ffffff;
+    --color-bg-section: #f5f5f5;
+    --color-bg-input: #f9f9f9;
+    --color-bg-tabs: #f5f5f5;
+    --color-bg-footer: #f5f5f5;
+    --color-bg-hover: #e8e8e8;
+    
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #4d4d4d;
+    --color-text-hint: #808080;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #d0d0d0;
+    --color-border-focus: #27ae60;
+    
+    /* Accents */
+    --color-accent-success: #2ecc71;
+    --color-accent-error: #ff4757;
+    --color-accent-error-hover: #ff3838;
+    --color-accent-warning: #f39c12;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 5px 15px rgba(39, 174, 96, 0.4);
+    --shadow-button: 0 10px 25px rgba(39, 174, 96, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #27ae60 0%, #16a085 100%);
+    --gradient-progress: linear-gradient(90deg, #27ae60 0%, #16a085 100%);
+}
+
+/* ================================================
+   FOREST THEME - Dark Mode
+   ================================================ */
+[data-theme="forest"][data-mode="dark"] {
+    /* Primary Colors */
+    --color-primary: #2ecc71;
+    --color-secondary: #1abc9c;
+    --color-gradient-start: #2ecc71;
+    --color-gradient-end: #1abc9c;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #0a1a0a 0%, #0a1a14 100%);
+    --color-bg-main: #1e1e1e;
+    --color-bg-section: #2a2a2a;
+    --color-bg-input: #333333;
+    --color-bg-tabs: #2a2a2a;
+    --color-bg-footer: #2a2a2a;
+    --color-bg-hover: #3a3a3a;
+    
+    /* Text Colors */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8c8c8;
+    --color-text-hint: #999999;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #404040;
+    --color-border-medium: #505050;
+    --color-border-focus: #2ecc71;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 5px 15px rgba(46, 204, 113, 0.4);
+    --shadow-button: 0 10px 25px rgba(46, 204, 113, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #2ecc71 0%, #1abc9c 100%);
+    --gradient-progress: linear-gradient(90deg, #2ecc71 0%, #1abc9c 100%);
+}
+
+/* ================================================
+   OCEAN THEME - Light Mode
+   Beruhigende Blautöne
+   ================================================ */
+[data-theme="ocean"] {
+    /* Primary Colors */
+    --color-primary: #3498db;
+    --color-secondary: #2980b9;
+    --color-gradient-start: #3498db;
+    --color-gradient-end: #2980b9;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    --color-bg-main: #ffffff;
+    --color-bg-section: #f5f5f5;
+    --color-bg-input: #f9f9f9;
+    --color-bg-tabs: #f5f5f5;
+    --color-bg-footer: #f5f5f5;
+    --color-bg-hover: #e8e8e8;
+    
+    /* Text Colors */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #4d4d4d;
+    --color-text-hint: #808080;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #e0e0e0;
+    --color-border-medium: #d0d0d0;
+    --color-border-focus: #3498db;
+    
+    /* Accents */
+    --color-accent-success: #2ecc71;
+    --color-accent-error: #ff4757;
+    --color-accent-error-hover: #ff3838;
+    --color-accent-warning: #f39c12;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 5px 15px rgba(52, 152, 219, 0.4);
+    --shadow-button: 0 10px 25px rgba(52, 152, 219, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    --gradient-progress: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+}
+
+/* ================================================
+   OCEAN THEME - Dark Mode
+   ================================================ */
+[data-theme="ocean"][data-mode="dark"] {
+    /* Primary Colors */
+    --color-primary: #5dade2;
+    --color-secondary: #3498db;
+    --color-gradient-start: #5dade2;
+    --color-gradient-end: #3498db;
+    
+    /* Backgrounds */
+    --color-bg-body: linear-gradient(135deg, #0a0f1a 0%, #0a141a 100%);
+    --color-bg-main: #1e1e1e;
+    --color-bg-section: #2a2a2a;
+    --color-bg-input: #333333;
+    --color-bg-tabs: #2a2a2a;
+    --color-bg-footer: #2a2a2a;
+    --color-bg-hover: #3a3a3a;
+    
+    /* Text Colors */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c8c8c8;
+    --color-text-hint: #999999;
+    --color-text-inverse: #ffffff;
+    
+    /* Borders */
+    --color-border-light: #404040;
+    --color-border-medium: #505050;
+    --color-border-focus: #5dade2;
+    
+    /* Shadows */
+    --shadow-main: 0 20px 60px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 5px 15px rgba(93, 173, 226, 0.4);
+    --shadow-button: 0 10px 25px rgba(93, 173, 226, 0.4);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+    --gradient-progress: linear-gradient(90deg, #5dade2 0%, #3498db 100%);
+}

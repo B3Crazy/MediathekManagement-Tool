@@ -422,7 +422,7 @@ async function searchYoutube() {
         const response = await fetch(`${API_URL}/api/search/youtube`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query, max_results: 20 }),
+            body: JSON.stringify({ query: query, max_results: 10 }),
             signal: currentSearchController.signal
         });
         

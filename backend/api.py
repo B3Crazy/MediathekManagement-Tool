@@ -284,72 +284,44 @@ async def search_youtube(request: SearchRequest):
     
     async def generate_results():
         try:
-            # Use JSON output for reliable parsing
             process = subprocess.Popen(
                 [sys.executable, "-m", "yt_dlp", 
-                 f"ytsearch{request.max_results}:{request.query}",
-                 "--dump-single-json",
-                 "--no-warnings",
-                 "--flat-playlist",
-                 "--skip-download"],
+                 "ytsearch" + str(request.max_results) + ":" + request.query,
+                 "--get-id", "--get-title", "--get-thumbnail", "--get-duration",
+                 "--no-warnings", "--no-playlist"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                bufsize=1
             )
             
             # Store process so it can be cancelled
             active_searches[search_id] = process
             
+            buffer = []
             try:
-                stdout, stderr = process.communicate(timeout=60)
-                
-                if process.returncode != 0:
-                    yield f"data: {{\"error\": \"Suche fehlgeschlagen: {stderr}\"}}\n\n"
-                    return
-                
-                # Parse JSON response
-                data = json.loads(stdout)
-                entries = data.get('entries', [])
-                
-                # Stream results one by one
-                for entry in entries:
-                    if not entry:
-                        continue
+                for line in process.stdout:
+                    line = line.strip()
+                    if line:
+                        buffer.append(line)
                         
-                    video_id = entry.get('id', '')
-                    title = entry.get('title', 'Unbekannter Titel')
-                    duration = entry.get('duration_string', entry.get('duration', 'N/A'))
-                    
-                    # Format duration if it's a number
-                    if isinstance(duration, (int, float)):
-                        mins, secs = divmod(int(duration), 60)
-                        hours, mins = divmod(mins, 60)
-                        if hours > 0:
-                            duration = f"{hours}:{mins:02d}:{secs:02d}"
-                        else:
-                            duration = f"{mins}:{secs:02d}"
-                    
-                    # Get best thumbnail
-                    thumbnails = entry.get('thumbnails', [])
-                    thumbnail = thumbnails[-1]['url'] if thumbnails else ''
-                    
-                    video = {
-                        "title": title,
-                        "video_id": video_id,
-                        "url": f"https://www.youtube.com/watch?v={video_id}",
-                        "thumbnail": thumbnail,
-                        "duration": str(duration)
-                    }
-                    
-                    # Send video immediately
-                    yield f"data: {json.dumps(video)}\n\n"
-                    await asyncio.sleep(0.01)  # Small delay for streaming
+                        # Every 4 lines = one complete video
+                        if len(buffer) == 4:
+                            video = {
+                                "title": buffer[0],
+                                "video_id": buffer[1],
+                                "url": f"https://www.youtube.com/watch?v={buffer[1]}",
+                                "thumbnail": buffer[2],
+                                "duration": buffer[3]
+                            }
+                            # Send video immediately
+                            yield f"data: {json.dumps(video)}\n\n"
+                            buffer = []
+                            await asyncio.sleep(0.01)  # Small delay for streaming
                 
+                process.wait()
                 yield "data: {\"done\": true}\n\n"
                 
-            except subprocess.TimeoutExpired:
-                process.kill()
-                yield f"data: {{\"error\": \"Suche timeout\"}}\n\n"
             finally:
                 if search_id in active_searches:
                     del active_searches[search_id]

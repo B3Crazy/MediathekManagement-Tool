@@ -276,17 +276,18 @@ function pollVideoStatus() {
                 updateVideoCurrentProgress(0);
                 updateVideoCurrentStatus('');
                 
-                // Trigger download and show message
+                // Trigger download
                 const zipUrl = `${API_URL}${status.download_url}`;
                 window.location.href = zipUrl;
                 
+                // Show message and wait for user confirmation
                 alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
                 
-                // Clean up after a delay
-                setTimeout(() => {
-                    cleanupTask(currentVideoTaskId);
-                    currentVideoTaskId = null;
-                }, 5000);
+                // After user closes the popup, cleanup on server
+                cleanupTask(currentVideoTaskId);
+                
+                // Reset task ID
+                currentVideoTaskId = null;
             }
             else if (status.status === 'complete') {
                 // Still processing zip, keep polling
@@ -390,17 +391,18 @@ function pollAudioStatus() {
                 updateAudioCurrentProgress(0);
                 updateAudioCurrentStatus('');
                 
-                // Trigger download and show message
+                // Trigger download
                 const zipUrl = `${API_URL}${status.download_url}`;
                 window.location.href = zipUrl;
                 
+                // Show message and wait for user confirmation
                 alert(`Download abgeschlossen!\nFehlgeschlagen: ${status.failed_urls.length}\n\nZIP-Datei wird heruntergeladen...`);
                 
-                // Clean up after a delay
-                setTimeout(() => {
-                    cleanupTask(currentAudioTaskId);
-                    currentAudioTaskId = null;
-                }, 5000);
+                // After user closes the popup, cleanup on server
+                cleanupTask(currentAudioTaskId);
+                
+                // Reset task ID
+                currentAudioTaskId = null;
             }
             else if (status.status === 'complete') {
                 // Still processing zip, keep polling

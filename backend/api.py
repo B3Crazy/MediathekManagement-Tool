@@ -41,21 +41,21 @@ zip_files: Dict[str, tuple[str, str]] = {}  # task_id -> (zip_path, folder_path)
 
 # Helper function to create timestamped download folder (for web app only)
 def create_timestamped_folder(file_count: int) -> str:
-    """Create a timestamped folder in user's Downloads directory"""
+    """Create a timestamped folder in backend's temp_download directory"""
     from datetime import datetime
     
-    # Get user's Downloads folder
-    home = Path.home()
-    downloads_path = home / "Downloads"
-    if not downloads_path.exists():
-        downloads_path.mkdir(parents=True, exist_ok=True)
+    # Get backend directory and create temp_download folder
+    backend_dir = Path(__file__).parent
+    temp_downloads_path = backend_dir / "temp_downloads"
+    if not temp_downloads_path.exists():
+        temp_downloads_path.mkdir(parents=True, exist_ok=True)
     
     # Create folder name: YYYYMMDD_HHMMSS_filecount
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder_name = f"{timestamp}_{file_count}"
     
     # Create the subfolder
-    output_path = downloads_path / folder_name
+    output_path = temp_downloads_path / folder_name
     output_path.mkdir(parents=True, exist_ok=True)
     
     return str(output_path)
@@ -136,6 +136,35 @@ async def create_zip_when_complete(task_id: str, folder_path: str):
             waited += 1
     except Exception as e:
         print(f"[ZIP ERROR] Error in zip creation task: {str(e)}")
+
+async def delayed_cleanup(task_id: str, zip_path: str, folder_path: str):
+    """Background task to cleanup files after download has been sent"""
+    import asyncio
+    try:
+        # Wait 30 seconds to give the user time to download the file
+        await asyncio.sleep(30)
+        
+        print(f"[AUTO-CLEANUP] Starting cleanup for task {task_id}")
+        
+        # Remove zip file
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+            print(f"[AUTO-CLEANUP] Removed zip: {zip_path}")
+        
+        # Remove downloaded folder
+        if os.path.exists(folder_path):
+            shutil.rmtree(folder_path)
+            print(f"[AUTO-CLEANUP] Removed folder: {folder_path}")
+        
+        # Remove from tracking
+        if task_id in zip_files:
+            del zip_files[task_id]
+        if task_id in download_tasks:
+            del download_tasks[task_id]
+            
+        print(f"[AUTO-CLEANUP] Cleanup complete for task {task_id}")
+    except Exception as e:
+        print(f"[AUTO-CLEANUP ERROR] Error cleaning up task {task_id}: {str(e)}")
 # Request/Response models
 class DownloadRequest(BaseModel):
     urls: List[HttpUrl]

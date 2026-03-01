@@ -1,3 +1,6 @@
 failed_downloads.csv
 *.log
 /backend/__pycache__
+
+# Virtual environment created by start.bat
+.venv/

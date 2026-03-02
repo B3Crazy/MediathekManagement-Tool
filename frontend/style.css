@@ -554,19 +554,16 @@ footer {
     100% { transform: rotate(360deg); }
 }
 
-    }
+.tab-content {
+    padding: 20px;
+}
     
-    .tab-content {
-        padding: 20px;
-    }
+.url-input-group,
+.path-input-group {
+    flex-direction: column;
+}
     
-    .url-input-group,
-    .path-input-group {
-        flex-direction: column;
-    }
-    
-    .radio-group {
-        flex-direction: column;
-        gap: 10px;
-    }
+.radio-group {
+    flex-direction: column;
+    gap: 10px;
 }

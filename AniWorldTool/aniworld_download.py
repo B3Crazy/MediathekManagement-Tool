@@ -927,116 +927,114 @@ def _download_with_visual_frontend(
 		for t in threads:
 			t.join()
 
-	# Retry failed jobs
-	if failures:
-		console.print(
-			Panel(
-				f"[yellow]Retrying {len(failures)} failed downloads...[/yellow]",
-				title="Retry Phase",
-				border_style="yellow",
+		# Retry failed jobs
+		if failures:
+			console.print(
+				Panel(
+					f"[yellow]Retrying {len(failures)} failed downloads...[/yellow]",
+					title="Retry Phase",
+					border_style="yellow",
+				)
 			)
-		)
 
-		retry_failures: list[dict] = []
+			retry_failures: list[dict] = []
+			retry_workers = max(1, max_workers // 2)
+			retry_task_ids = [
+				progress.add_task(f"Retry {i + 1}: waiting", total=1, completed=0)
+				for i in range(retry_workers)
+			]
 
-		def _retry_worker(worker_id: int, worker_task_id: int):
-			while True:
-				if not failures:
-					break
-				with lock:
+			def _retry_worker(worker_id: int, worker_task_id: int):
+				while True:
 					if not failures:
 						break
-					failed_item = failures.pop(0)
+					with lock:
+						if not failures:
+							break
+						failed_item = failures.pop(0)
 
-				job = failed_item["job"]
-				provider = job["provider"]
-				languages = job["languages"]
-
-				with lock:
-					progress.update(
-						worker_task_id,
-						description=(
-							f"Retry {worker_id}: {job['series_title']} | "
-							f"{job['season_text']} - {job['episode_text']}"
-						),
-						total=len(languages),
-						completed=0,
-					)
-
-				try:
-					for language in languages:
-						with lock:
-							progress.update(
-								worker_task_id,
-								description=(
-									f"Retry {worker_id}: {job['series_title']} | "
-									f"{job['season_text']} - {job['episode_text']} [{language}]"
-								),
-							)
-
-						last_error: Exception | None = None
-						provider_candidates = _provider_candidates_for_language(
-							provider,
-							job["url"],
-							language,
-						)
-
-						success = False
-						for candidate_provider in provider_candidates:
-							try:
-								with lock:
-									progress.update(
-										worker_task_id,
-										description=(
-											f"Retry {worker_id}: {job['series_title']} | "
-											f"{job['season_text']} - {job['episode_text']} [{language}] ({candidate_provider})"
-										),
-									)
-
-								active_episode = provider.episode_cls(
-									url=job["url"],
-									selected_language=language,
-									selected_provider=candidate_provider,
-								)
-								active_episode.download()
-								success = True
-								break
-							except Exception as exc:
-								last_error = exc
-								continue
-
-						if not success:
-							raise last_error or RuntimeError("Download failed for all providers")
-
-						with lock:
-							progress.advance(worker_task_id)
-							progress.advance(overall_task)
+					job = failed_item["job"]
+					provider = job["provider"]
+					languages = job["languages"]
 
 					with lock:
-						progress.advance(episode_task)
-
-				except Exception as exc:
-					with lock:
-						retry_failures.append({
-							"job": job,
-							"error": str(exc),
-							"exception": exc,
-						})
 						progress.update(
 							worker_task_id,
 							description=(
-								f"Retry {worker_id}: FAILED (after retry) - "
+								f"Retry {worker_id}: {job['series_title']} | "
 								f"{job['season_text']} - {job['episode_text']}"
 							),
+							total=len(languages),
+							completed=0,
 						)
 
-		retry_workers = max(1, max_workers // 2)
-		retry_task_ids = [
-			progress.add_task(f"Retry {i + 1}: waiting", total=1, completed=0)
-			for i in range(retry_workers)
-		]
+					try:
+						for language in languages:
+							with lock:
+								progress.update(
+									worker_task_id,
+									description=(
+										f"Retry {worker_id}: {job['series_title']} | "
+										f"{job['season_text']} - {job['episode_text']} [{language}]"
+									),
+								)
 
-		with _suppress_download_noise():
+							last_error: Exception | None = None
+							provider_candidates = _provider_candidates_for_language(
+								provider,
+								job["url"],
+								language,
+							)
+
+							success = False
+							for candidate_provider in provider_candidates:
+								try:
+									with lock:
+										progress.update(
+											worker_task_id,
+											description=(
+												f"Retry {worker_id}: {job['series_title']} | "
+												f"{job['season_text']} - {job['episode_text']} [{language}] ({candidate_provider})"
+											),
+										)
+
+									active_episode = provider.episode_cls(
+										url=job["url"],
+										selected_language=language,
+										selected_provider=candidate_provider,
+									)
+									active_episode.download()
+									success = True
+									break
+								except Exception as exc:
+									last_error = exc
+									continue
+
+							if not success:
+								raise last_error or RuntimeError("Download failed for all providers")
+
+							with lock:
+								progress.advance(worker_task_id)
+								progress.advance(overall_task)
+
+						with lock:
+							progress.advance(episode_task)
+
+					except Exception as exc:
+						with lock:
+							retry_failures.append({
+								"job": job,
+								"error": str(exc),
+								"exception": exc,
+							})
+							progress.update(
+								worker_task_id,
+								description=(
+									f"Retry {worker_id}: FAILED (after retry) - "
+									f"{job['season_text']} - {job['episode_text']}"
+								),
+							)
+
 			retry_threads = [
 				threading.Thread(target=_retry_worker, args=(i + 1, retry_task_ids[i]), daemon=True)
 				for i in range(retry_workers)
@@ -1047,7 +1045,7 @@ def _download_with_visual_frontend(
 			for t in retry_threads:
 				t.join()
 
-		failures = retry_failures
+			failures = retry_failures
 
 	if failures:
 		failure_preview = "\n".join([

@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import html
 import importlib
 import logging
 import os
 import queue
 import re
+import subprocess
 import sys
 import threading
 from collections.abc import Callable
@@ -70,6 +72,85 @@ def _suppress_aniworld_warning_logs():
 	for name in list(logging.Logger.manager.loggerDict):
 		if name.startswith("aniworld"):
 			logging.getLogger(name).setLevel(logging.ERROR)
+
+
+def _is_ffmpeg_like_command(cmd) -> bool:
+	if not cmd:
+		return False
+
+	if isinstance(cmd, (list, tuple)):
+		if not cmd:
+			return False
+		binary = str(cmd[0])
+	else:
+		parts = str(cmd).strip().split()
+		if not parts:
+			return False
+		binary = parts[0]
+
+	binary_name = os.path.basename(binary).lower()
+	return binary_name in {"ffmpeg", "ffmpeg.exe", "ffprobe", "ffprobe.exe"}
+
+
+@contextlib.contextmanager
+def _suppress_ffmpeg_output():
+	original_popen = subprocess.Popen
+
+	def _quiet_popen(*args, **kwargs):
+		command = kwargs.get("args")
+		if command is None and args:
+			command = args[0]
+
+		if _is_ffmpeg_like_command(command):
+			kwargs.setdefault("stdout", subprocess.DEVNULL)
+			kwargs.setdefault("stderr", subprocess.DEVNULL)
+
+		return original_popen(*args, **kwargs)
+
+	subprocess.Popen = _quiet_popen
+	try:
+		yield
+	finally:
+		subprocess.Popen = original_popen
+
+
+@contextlib.contextmanager
+def _suppress_ffmpeg_python_output():
+	try:
+		import ffmpeg
+	except Exception:
+		yield
+		return
+
+	original_module_run = getattr(ffmpeg, "run", None)
+	original_output_run = getattr(ffmpeg.nodes.OutputStream, "run", None)
+
+	def _quiet_module_run(stream_spec, *args, **kwargs):
+		kwargs.setdefault("quiet", True)
+		return original_module_run(stream_spec, *args, **kwargs)
+
+	def _quiet_output_run(self, *args, **kwargs):
+		kwargs.setdefault("quiet", True)
+		return original_output_run(self, *args, **kwargs)
+
+	if callable(original_module_run):
+		ffmpeg.run = _quiet_module_run
+	if callable(original_output_run):
+		ffmpeg.nodes.OutputStream.run = _quiet_output_run
+
+	try:
+		yield
+	finally:
+		if callable(original_module_run):
+			ffmpeg.run = original_module_run
+		if callable(original_output_run):
+			ffmpeg.nodes.OutputStream.run = original_output_run
+
+
+@contextlib.contextmanager
+def _suppress_download_noise():
+	with _suppress_ffmpeg_output(), _suppress_ffmpeg_python_output():
+		yield
 
 
 def _provider_candidates_for_language(provider, episode_url: str, language: str) -> list[str]:
@@ -514,13 +595,15 @@ def _download_episode_all_languages(episode_url: str, resolve_provider, extract_
 
 	for language in languages:
 		episode = provider.episode_cls(url=episode_url, selected_language=language)
-		episode.download()
+		with _suppress_download_noise():
+			episode.download()
 
 
 def _download_all_languages_for_object(obj, resolve_provider, extract_menu_languages):
 	if hasattr(obj, "episodes"):
 		for episode in obj.episodes:
-			_download_episode_all_languages(episode.url, resolve_provider, extract_menu_languages)
+			with _suppress_download_noise():
+				_download_episode_all_languages(episode.url, resolve_provider, extract_menu_languages)
 		return
 
 	if hasattr(obj, "episode_number") and hasattr(obj, "provider_data"):
@@ -601,20 +684,24 @@ def _download_with_visual_frontend(
 	if RICH_AVAILABLE is False:
 		for obj in objs:
 			if all_languages:
-				_download_all_languages_for_object(obj, resolve_provider, extract_menu_languages)
+				with _suppress_download_noise():
+					_download_all_languages_for_object(obj, resolve_provider, extract_menu_languages)
 			else:
 				for episode in _episode_list_for_object(obj):
-					episode.download()
+					with _suppress_download_noise():
+						episode.download()
 		return
 
 	rich_components = _load_rich_components()
 	if not rich_components:
 		for obj in objs:
 			if all_languages:
-				_download_all_languages_for_object(obj, resolve_provider, extract_menu_languages)
+				with _suppress_download_noise():
+					_download_all_languages_for_object(obj, resolve_provider, extract_menu_languages)
 			else:
 				for episode in _episode_list_for_object(obj):
-					episode.download()
+					with _suppress_download_noise():
+						episode.download()
 		return
 
 	Console = rich_components["Console"]
@@ -750,7 +837,7 @@ def _download_with_visual_frontend(
 			finally:
 				jobs_queue.task_done()
 
-	with progress:
+	with _suppress_download_noise(), progress:
 		overall_task = progress.add_task("Overall", total=total_tracks, completed=0)
 		episode_task = progress.add_task("Episodes", total=len(jobs), completed=0)
 		worker_task_ids = [
@@ -818,7 +905,8 @@ def main() -> int:
 		if all_languages:
 			_download_all_languages_for_object(obj, resolve_provider, extract_menu_languages)
 		else:
-			run_action(obj, action)
+			with _suppress_download_noise():
+				run_action(obj, action)
 
 	return 0
 

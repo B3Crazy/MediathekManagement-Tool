@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple non-interactive AniWorld downloader wrapper."""
+"""Simple non-interactive AniLoad wrapper."""
 
 from __future__ import annotations
 
@@ -324,6 +324,22 @@ def _build_parser() -> argparse.ArgumentParser:
 		help="Disable the visual console frontend for downloads.",
 	)
 	return parser
+
+
+def _print_startup_banner() -> None:
+	banner = r"""
+
+█████████               ███  █████                              █████
+  ███░░░░░███             ░░░  ░░███                              ░░███
+ ░███    ░███  ████████   ████  ░███         ██████   ██████    ███████
+ ░███████████ ░░███░░███ ░░███  ░███        ███░░███ ░░░░░███  ███░░███
+ ░███░░░░░███  ░███ ░███  ░███  ░███       ░███ ░███  ███████ ░███ ░███
+ ░███    ░███  ░███ ░███  ░███  ░███      █░███ ░███ ███░░███ ░███ ░███
+ █████   █████ ████ █████ █████ ███████████░░██████ ░░████████░░████████
+░░░░░   ░░░░░ ░░░░ ░░░░░ ░░░░░ ░░░░░░░░░░░  ░░░░░░   ░░░░░░░░  ░░░░░░░░
+
+"""
+	print(banner)
 
 
 def _read_url_file(file_path: Path | None) -> list[str]:
@@ -1056,6 +1072,7 @@ def _download_with_visual_frontend(
 
 
 def main() -> int:
+	_print_startup_banner()
 	parser = _build_parser()
 	args = parser.parse_args()
 	_, resolve_provider, run_action = _load_aniworld_api()

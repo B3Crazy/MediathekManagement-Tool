@@ -26,46 +26,110 @@ PREFERRED_PROVIDERS = ("Filemoon", "Vidmoly", "VOE")
 
 def _load_aniworld_api():
 	try:
-		entry = importlib.import_module("aniworld.entry")
+		config = importlib.import_module("aniworld.config")
+		providers = importlib.import_module("aniworld.providers")
 	except ModuleNotFoundError as exc:
 		raise ModuleNotFoundError(
 			"The aniworld package is not installed in the active Python environment."
 		) from exc
 
-	return entry.ACTION_METHODS, entry.resolve_provider, entry.run_action
+	def _run_action(obj, action: str):
+		if action not in config.ACTION_METHODS.values():
+			raise ValueError(f"Invalid action: {action}")
+		getattr(obj, action)()
+
+	return config.ACTION_METHODS, providers.resolve_provider, _run_action
 
 
 def _load_search_api() -> Callable[[str], list[dict]]:
 	try:
-		search_module = importlib.import_module("aniworld.search")
+		config = importlib.import_module("aniworld.config")
 	except ModuleNotFoundError as exc:
 		raise ModuleNotFoundError(
 			"The aniworld package is not installed in the active Python environment."
 		) from exc
 
-	return search_module.query
+	search_url = "https://aniworld.to/ajax/search"
+
+	def _query(keyword: str) -> list[dict]:
+		response = config.GLOBAL_SESSION.post(search_url, data={"keyword": keyword})
+		try:
+			data = response.json()
+		except ValueError:
+			return []
+		return data if isinstance(data, list) else []
+
+	return _query
 
 
 def _load_menu_language_extractor() -> Callable[[str, dict], list[str]]:
 	try:
 		menu_module = importlib.import_module("aniworld.menu")
+		return menu_module._extract_menu_languages
+	except ModuleNotFoundError as exc:
+		if exc.name not in {"_curses", "curses"}:
+			raise ModuleNotFoundError(
+				"The aniworld package is not installed in the active Python environment."
+			) from exc
+
+	try:
+		config = importlib.import_module("aniworld.config")
 	except ModuleNotFoundError as exc:
 		raise ModuleNotFoundError(
 			"The aniworld package is not installed in the active Python environment."
 		) from exc
 
-	return menu_module._extract_menu_languages
+	def _extract_menu_languages(provider_name: str, provider_data: dict) -> list[str]:
+		languages: list[str] = []
+
+		if provider_name == "AniWorld":
+			for key in provider_data.keys():
+				site_key = config.INVERSE_LANG_KEY_MAP.get(key)
+				if site_key is None:
+					continue
+				label = config.LANG_LABELS.get(site_key)
+				if label and label not in languages:
+					languages.append(label)
+			return languages
+
+		if provider_name == "SerienStream":
+			for key in provider_data.keys():
+				if not (isinstance(key, tuple) and len(key) == 2):
+					continue
+				audio = getattr(key[0], "value", str(key[0]))
+				audio_lower = str(audio).lower()
+				if audio_lower == "german":
+					label = "German Dub"
+				elif audio_lower == "english":
+					label = "English Dub"
+				else:
+					continue
+				if label not in languages:
+					languages.append(label)
+
+		return languages
+
+	return _extract_menu_languages
 
 
 def _load_menu_provider_extractor() -> Callable[[dict], list[str]]:
 	try:
 		menu_module = importlib.import_module("aniworld.menu")
+		return menu_module._extract_menu_providers
 	except ModuleNotFoundError as exc:
-		raise ModuleNotFoundError(
-			"The aniworld package is not installed in the active Python environment."
-		) from exc
+		if exc.name not in {"_curses", "curses"}:
+			raise ModuleNotFoundError(
+				"The aniworld package is not installed in the active Python environment."
+			) from exc
 
-	return menu_module._extract_menu_providers
+	def _extract_menu_providers(provider_data: dict) -> list[str]:
+		provider_names: set[str] = set()
+		for providers_map in provider_data.values():
+			if isinstance(providers_map, dict):
+				provider_names.update(str(p) for p in providers_map.keys())
+		return sorted(provider_names)
+
+	return _extract_menu_providers
 
 
 def _suppress_aniworld_warning_logs():
@@ -127,16 +191,20 @@ def _suppress_ffmpeg_python_output():
 
 	def _quiet_module_run(stream_spec, *args, **kwargs):
 		kwargs.setdefault("quiet", True)
+		if not callable(original_module_run):
+			return None
 		return original_module_run(stream_spec, *args, **kwargs)
 
 	def _quiet_output_run(self, *args, **kwargs):
 		kwargs.setdefault("quiet", True)
+		if not callable(original_output_run):
+			return None
 		return original_output_run(self, *args, **kwargs)
 
 	if callable(original_module_run):
 		ffmpeg.run = _quiet_module_run
 	if callable(original_output_run):
-		ffmpeg.nodes.OutputStream.run = _quiet_output_run
+		setattr(ffmpeg.nodes.OutputStream, "run", _quiet_output_run)
 
 	try:
 		yield
@@ -144,7 +212,7 @@ def _suppress_ffmpeg_python_output():
 		if callable(original_module_run):
 			ffmpeg.run = original_module_run
 		if callable(original_output_run):
-			ffmpeg.nodes.OutputStream.run = original_output_run
+			setattr(ffmpeg.nodes.OutputStream, "run", original_output_run)
 
 
 @contextlib.contextmanager
@@ -386,14 +454,7 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 	extract_menu_providers = _load_menu_provider_extractor()
 
 	if rich_components:
-		Console = rich_components["Console"]
-		Table = rich_components["Table"]
-		Prompt = rich_components["Prompt"]
-		IntPrompt = rich_components["IntPrompt"]
-		Confirm = rich_components["Confirm"]
-		Panel = rich_components["Panel"]
-		Markdown = rich_components["Markdown"]
-		console = Console()
+		console = rich_components["Console"]()
 	else:
 		console = None
 
@@ -412,14 +473,14 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 			initial_search = None
 			continue
 
-		if console:
-			table = Table(title="Search Results")
+		if console is not None and rich_components:
+			table = rich_components["Table"](title="Search Results")
 			table.add_column("#", style="cyan", justify="right")
 			table.add_column("Title", style="bold")
 			for i, item in enumerate(results, start=1):
 				table.add_row(str(i), item["title"])
 			console.print(table)
-			series_idx = IntPrompt.ask(
+			series_idx = rich_components["IntPrompt"].ask(
 				"Pick series number",
 				default=1,
 				choices=[str(i) for i in range(1, len(results) + 1)],
@@ -444,9 +505,9 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 	country = _clean_text(getattr(series_obj, "country", "") or "")
 	description = _clean_text(getattr(series_obj, "description", "") or "")
 
-	if console:
+	if console is not None and rich_components:
 		console.print(
-			Panel(
+			rich_components["Panel"](
 				f"[bold cyan]{series_title}[/bold cyan]\n"
 				f"[bold]Year:[/bold] {release_year}    [bold]Rating:[/bold] {rating}\n"
 				f"[bold]Country:[/bold] {country or '-'}\n"
@@ -456,14 +517,20 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 			)
 		)
 		if description:
-			console.print(Panel(Markdown(description[:700]), title="Description", border_style="blue"))
+			console.print(
+				rich_components["Panel"](
+					rich_components["Markdown"](description[:700]),
+					title="Description",
+					border_style="blue",
+				)
+			)
 
 	seasons = list(series_obj.seasons)
 	if not seasons:
 		raise ValueError("No seasons found for selected series.")
 
-	if console:
-		table = Table(title="Seasons")
+	if console is not None and rich_components:
+		table = rich_components["Table"](title="Seasons")
 		table.add_column("#", justify="right", style="cyan")
 		table.add_column("Season")
 		table.add_column("Episodes", justify="right")
@@ -471,16 +538,16 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 			table.add_row(str(i), str(season.season_number), str(season.episode_count))
 		console.print(table)
 
-	if console:
-		all_seasons = Confirm.ask("Select all seasons?", default=True)
+	if console is not None and rich_components:
+		all_seasons = rich_components["Confirm"].ask("Select all seasons?", default=True)
 	else:
 		all_seasons = input("Select all seasons? [Y/n]: ").strip().lower() in {"", "y", "yes"}
 
 	if all_seasons:
 		chosen_seasons = seasons
 	else:
-		if console:
-			season_input = Prompt.ask("Choose season numbers (e.g. 1,3 or 2-4)")
+		if console is not None and rich_components:
+			season_input = rich_components["Prompt"].ask("Choose season numbers (e.g. 1,3 or 2-4)")
 		else:
 			season_input = input("Choose season numbers (e.g. 1,3 or 2-4): ")
 		season_indexes = _parse_episode_selection(season_input, len(seasons))
@@ -492,8 +559,8 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 		if not episodes:
 			continue
 
-		if console:
-			table = Table(title=f"Season {season.season_number} Episodes")
+		if console is not None and rich_components:
+			table = rich_components["Table"](title=f"Season {season.season_number} Episodes")
 			table.add_column("#", justify="right", style="cyan")
 			table.add_column("Episode", justify="right")
 			table.add_column("Title", style="bold")
@@ -512,7 +579,10 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 					", ".join(providers) if providers else "-",
 				)
 			console.print(table)
-			all_eps = Confirm.ask(f"Select all episodes from season {season.season_number}?", default=True)
+			all_eps = rich_components["Confirm"].ask(
+				f"Select all episodes from season {season.season_number}?",
+				default=True,
+			)
 		else:
 			all_eps = input(f"Select all episodes from season {season.season_number}? [Y/n]: ").strip().lower() in {"", "y", "yes"}
 
@@ -520,8 +590,8 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 			episode_urls.extend(ep.url for ep in episodes)
 			continue
 
-		if console:
-			episode_input = Prompt.ask(
+		if console is not None and rich_components:
+			episode_input = rich_components["Prompt"].ask(
 				f"Choose episodes for season {season.season_number} (e.g. 1,3 or 2-5)"
 			)
 		else:
@@ -535,18 +605,18 @@ def _interactive_frontend_wizard(resolve_provider, initial_search: str | None = 
 	if not episode_urls:
 		raise ValueError("No episodes selected.")
 
-	if console:
-		action = Prompt.ask("Action", choices=list(DEFAULT_ACTIONS), default="download")
+	if console is not None and rich_components:
+		action = rich_components["Prompt"].ask("Action", choices=list(DEFAULT_ACTIONS), default="download")
 	else:
 		action = input("Action (download/watch/syncplay) [download]: ").strip().lower() or "download"
 		if action not in DEFAULT_ACTIONS:
 			action = "download"
 
 	if action == "download":
-		if console:
-			all_languages = Confirm.ask("Download all dubs/subs into same MKV?", default=True)
-			no_visual = not Confirm.ask("Use visual progress frontend?", default=True)
-			option_table = Table(title="Download Options")
+		if console is not None and rich_components:
+			all_languages = rich_components["Confirm"].ask("Download all dubs/subs into same MKV?", default=True)
+			no_visual = not rich_components["Confirm"].ask("Use visual progress frontend?", default=True)
+			option_table = rich_components["Table"](title="Download Options")
 			option_table.add_column("Option", style="cyan")
 			option_table.add_column("Selected", style="bold green")
 			option_table.add_row("Action", action)
@@ -720,7 +790,7 @@ def _download_with_visual_frontend(
 	_suppress_aniworld_warning_logs()
 
 	total_tracks = sum(len(job["languages"]) for job in jobs)
-	max_workers = max(1, min(len(jobs), 6))
+	max_workers = max(1, min(len(jobs), 10))  # Limit max workers to 10 for sanity.
 
 	progress = Progress(
 		SpinnerColumn(),
@@ -745,7 +815,7 @@ def _download_with_visual_frontend(
 	for job in jobs:
 		jobs_queue.put(job)
 
-	failures: list[str] = []
+	failures: list[dict] = []
 
 	def _worker(worker_id: int, worker_task_id: int):
 		while True:
@@ -824,9 +894,11 @@ def _download_with_visual_frontend(
 
 			except Exception as exc:
 				with lock:
-					failures.append(
-						f"{job['series_title']} | {job['season_text']} - {job['episode_text']}: {exc}"
-					)
+					failures.append({
+						"job": job,
+						"error": str(exc),
+						"exception": exc,
+					})
 					progress.update(
 						worker_task_id,
 						description=(
@@ -855,9 +927,134 @@ def _download_with_visual_frontend(
 		for t in threads:
 			t.join()
 
+	# Retry failed jobs
 	if failures:
-		failure_preview = "\n".join(failures[:10])
-		raise RuntimeError(f"Some downloads failed:\n{failure_preview}")
+		console.print(
+			Panel(
+				f"[yellow]Retrying {len(failures)} failed downloads...[/yellow]",
+				title="Retry Phase",
+				border_style="yellow",
+			)
+		)
+
+		retry_failures: list[dict] = []
+
+		def _retry_worker(worker_id: int, worker_task_id: int):
+			while True:
+				if not failures:
+					break
+				with lock:
+					if not failures:
+						break
+					failed_item = failures.pop(0)
+
+				job = failed_item["job"]
+				provider = job["provider"]
+				languages = job["languages"]
+
+				with lock:
+					progress.update(
+						worker_task_id,
+						description=(
+							f"Retry {worker_id}: {job['series_title']} | "
+							f"{job['season_text']} - {job['episode_text']}"
+						),
+						total=len(languages),
+						completed=0,
+					)
+
+				try:
+					for language in languages:
+						with lock:
+							progress.update(
+								worker_task_id,
+								description=(
+									f"Retry {worker_id}: {job['series_title']} | "
+									f"{job['season_text']} - {job['episode_text']} [{language}]"
+								),
+							)
+
+						last_error: Exception | None = None
+						provider_candidates = _provider_candidates_for_language(
+							provider,
+							job["url"],
+							language,
+						)
+
+						success = False
+						for candidate_provider in provider_candidates:
+							try:
+								with lock:
+									progress.update(
+										worker_task_id,
+										description=(
+											f"Retry {worker_id}: {job['series_title']} | "
+											f"{job['season_text']} - {job['episode_text']} [{language}] ({candidate_provider})"
+										),
+									)
+
+								active_episode = provider.episode_cls(
+									url=job["url"],
+									selected_language=language,
+									selected_provider=candidate_provider,
+								)
+								active_episode.download()
+								success = True
+								break
+							except Exception as exc:
+								last_error = exc
+								continue
+
+						if not success:
+							raise last_error or RuntimeError("Download failed for all providers")
+
+						with lock:
+							progress.advance(worker_task_id)
+							progress.advance(overall_task)
+
+					with lock:
+						progress.advance(episode_task)
+
+				except Exception as exc:
+					with lock:
+						retry_failures.append({
+							"job": job,
+							"error": str(exc),
+							"exception": exc,
+						})
+						progress.update(
+							worker_task_id,
+							description=(
+								f"Retry {worker_id}: FAILED (after retry) - "
+								f"{job['season_text']} - {job['episode_text']}"
+							),
+						)
+
+		retry_workers = max(1, max_workers // 2)
+		retry_task_ids = [
+			progress.add_task(f"Retry {i + 1}: waiting", total=1, completed=0)
+			for i in range(retry_workers)
+		]
+
+		with _suppress_download_noise():
+			retry_threads = [
+				threading.Thread(target=_retry_worker, args=(i + 1, retry_task_ids[i]), daemon=True)
+				for i in range(retry_workers)
+			]
+
+			for t in retry_threads:
+				t.start()
+			for t in retry_threads:
+				t.join()
+
+		failures = retry_failures
+
+	if failures:
+		failure_preview = "\n".join([
+			f"{f['job']['series_title']} | {f['job']['season_text']} - {f['job']['episode_text']}: {f['error']}"
+			for f in failures[:10]
+		])
+		raise RuntimeError(f"Some downloads failed (even after retry):\n{failure_preview}")
 
 
 def main() -> int:

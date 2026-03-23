@@ -827,33 +827,55 @@ def _download_with_visual_frontend(
 	)
 
 	lock = threading.Lock()
-	jobs_queue: queue.Queue = queue.Queue()
+	work_queue: queue.Queue = queue.Queue()
 	for job in jobs:
-		jobs_queue.put(job)
+		work_queue.put((job, 1))  # attempt 1
 
 	failures: list[dict] = []
 
 	def _worker(worker_id: int, worker_task_id: int):
+		is_idle = False
 		while True:
 			try:
-				job = jobs_queue.get_nowait()
+				item = work_queue.get(timeout=0.2)
 			except queue.Empty:
+				if not is_idle:
+					with lock:
+						progress.update(
+							worker_task_id,
+							description=f"Worker {worker_id}: idle",
+							total=1,
+							completed=1,
+						)
+					is_idle = True
+				continue
+
+			if item is None:
 				with lock:
 					progress.update(worker_task_id, description=f"Worker {worker_id}: idle", total=1, completed=1)
+				work_queue.task_done()
 				return
+
+			job, attempt = item
+			is_retrying = attempt > 1
+			is_idle = False
 
 			provider = job["provider"]
 			languages = job["languages"]
 
+			prefix = "Retry Worker" if is_retrying else "Worker"
+
+			# Reuse the same worker line and reset progress for each assigned episode.
 			with lock:
-				progress.update(
+				progress.reset(
 					worker_task_id,
-					description=(
-						f"Worker {worker_id}: {job['series_title']} | "
-						f"{job['season_text']} - {job['episode_text']}"
-					),
+					start=True,
 					total=len(languages),
 					completed=0,
+					description=(
+						f"{prefix} {worker_id}: {job['series_title']} | "
+						f"{job['season_text']} - {job['episode_text']}"
+					),
 				)
 
 			try:
@@ -862,7 +884,7 @@ def _download_with_visual_frontend(
 						progress.update(
 							worker_task_id,
 							description=(
-								f"Worker {worker_id}: {job['series_title']} | "
+								f"{prefix} {worker_id}: {job['series_title']} | "
 								f"{job['season_text']} - {job['episode_text']} [{language}]"
 							),
 						)
@@ -881,7 +903,7 @@ def _download_with_visual_frontend(
 								progress.update(
 									worker_task_id,
 									description=(
-										f"Worker {worker_id}: {job['series_title']} | "
+										f"{prefix} {worker_id}: {job['series_title']} | "
 										f"{job['season_text']} - {job['episode_text']} [{language}] ({candidate_provider})"
 									),
 								)
@@ -910,20 +932,33 @@ def _download_with_visual_frontend(
 
 			except Exception as exc:
 				with lock:
-					failures.append({
-						"job": job,
-						"error": str(exc),
-						"exception": exc,
-					})
-					progress.update(
-						worker_task_id,
-						description=(
-							f"Worker {worker_id}: failed - "
-							f"{job['season_text']} - {job['episode_text']}"
-						),
-					)
+					if is_retrying:
+						# Second attempt failed, record as final failure
+						failures.append({
+							"job": job,
+							"error": str(exc),
+							"exception": exc,
+						})
+						progress.update(
+							worker_task_id,
+							description=(
+								f"{prefix} {worker_id}: FAILED (after retry) - "
+								f"{job['season_text']} - {job['episode_text']}"
+							),
+						)
+						progress.advance(episode_task)
+					else:
+						# First attempt failed, queue for retry
+						work_queue.put((job, 2))  # attempt 2
+						progress.update(
+							worker_task_id,
+							description=(
+								f"Worker {worker_id}: failed, queued for retry - "
+								f"{job['season_text']} - {job['episode_text']}"
+							),
+						)
 			finally:
-				jobs_queue.task_done()
+				work_queue.task_done()
 
 	with _suppress_download_noise(), progress:
 		overall_task = progress.add_task("Overall", total=total_tracks, completed=0)
@@ -940,135 +975,31 @@ def _download_with_visual_frontend(
 
 		for t in threads:
 			t.start()
+
+		work_queue.join()
+		for _ in range(max_workers):
+			work_queue.put(None)
+		work_queue.join()
+
 		for t in threads:
 			t.join()
 
-		# Retry failed jobs
-		if failures:
-			console.print(
-				Panel(
-					f"[yellow]Retrying {len(failures)} failed downloads...[/yellow]",
-					title="Retry Phase",
-					border_style="yellow",
+		# Ensure the final render is clean: all worker rows should end in idle.
+		with lock:
+			for i, task_id in enumerate(worker_task_ids, start=1):
+				progress.update(
+					task_id,
+					description=f"Worker {i}: idle",
+					total=1,
+					completed=1,
 				)
-			)
 
-			retry_failures: list[dict] = []
-			retry_workers = max(1, max_workers // 2)
-			retry_task_ids = [
-				progress.add_task(f"Retry {i + 1}: waiting", total=1, completed=0)
-				for i in range(retry_workers)
-			]
-
-			def _retry_worker(worker_id: int, worker_task_id: int):
-				while True:
-					if not failures:
-						break
-					with lock:
-						if not failures:
-							break
-						failed_item = failures.pop(0)
-
-					job = failed_item["job"]
-					provider = job["provider"]
-					languages = job["languages"]
-
-					with lock:
-						progress.update(
-							worker_task_id,
-							description=(
-								f"Retry {worker_id}: {job['series_title']} | "
-								f"{job['season_text']} - {job['episode_text']}"
-							),
-							total=len(languages),
-							completed=0,
-						)
-
-					try:
-						for language in languages:
-							with lock:
-								progress.update(
-									worker_task_id,
-									description=(
-										f"Retry {worker_id}: {job['series_title']} | "
-										f"{job['season_text']} - {job['episode_text']} [{language}]"
-									),
-								)
-
-							last_error: Exception | None = None
-							provider_candidates = _provider_candidates_for_language(
-								provider,
-								job["url"],
-								language,
-							)
-
-							success = False
-							for candidate_provider in provider_candidates:
-								try:
-									with lock:
-										progress.update(
-											worker_task_id,
-											description=(
-												f"Retry {worker_id}: {job['series_title']} | "
-												f"{job['season_text']} - {job['episode_text']} [{language}] ({candidate_provider})"
-											),
-										)
-
-									active_episode = provider.episode_cls(
-										url=job["url"],
-										selected_language=language,
-										selected_provider=candidate_provider,
-									)
-									active_episode.download()
-									success = True
-									break
-								except Exception as exc:
-									last_error = exc
-									continue
-
-							if not success:
-								raise last_error or RuntimeError("Download failed for all providers")
-
-							with lock:
-								progress.advance(worker_task_id)
-								progress.advance(overall_task)
-
-						with lock:
-							progress.advance(episode_task)
-
-					except Exception as exc:
-						with lock:
-							retry_failures.append({
-								"job": job,
-								"error": str(exc),
-								"exception": exc,
-							})
-							progress.update(
-								worker_task_id,
-								description=(
-									f"Retry {worker_id}: FAILED (after retry) - "
-									f"{job['season_text']} - {job['episode_text']}"
-								),
-							)
-
-			retry_threads = [
-				threading.Thread(target=_retry_worker, args=(i + 1, retry_task_ids[i]), daemon=True)
-				for i in range(retry_workers)
-			]
-
-			for t in retry_threads:
-				t.start()
-			for t in retry_threads:
-				t.join()
-
-			failures = retry_failures
-
-	if failures:
-		failure_preview = "\n".join([
-			f"{f['job']['series_title']} | {f['job']['season_text']} - {f['job']['episode_text']}: {f['error']}"
-			for f in failures[:10]
-		])
-		raise RuntimeError(f"Some downloads failed (even after retry):\n{failure_preview}")
+		if failures:
+			failure_preview = "\n".join([
+				f"{f['job']['series_title']} | {f['job']['season_text']} - {f['job']['episode_text']}: {f['error']}"
+				for f in failures[:10]
+			])
+			raise RuntimeError(f"Some downloads failed (even after retry):\n{failure_preview}")
 
 
 def main() -> int:

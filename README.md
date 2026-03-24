@@ -80,25 +80,44 @@ Minimum startup behavior expected from both script variants:
 ## Quick Start
 
 This repository does not have a single global entry point yet.
-Use the README inside the source folder you want to run.
+Use the startup scripts inside the source folder you want to run.
 
 ### Run AniWorld tool
 
+**Linux/macOS:**
+
 ```bash
 cd AniWorldTool
-python AniLoad.py
+./start.sh
 ```
 
-See full usage in `AniWorldTool/README.md`.
+**Windows:**
+
+```bash
+cd AniWorldTool
+start.bat
+```
+
+See full usage and options in [AniWorldTool/README.md](AniWorldTool/README.md).
 
 ### Run YouTube tool
 
+**Linux:**
+
 ```bash
 cd youtubeTool
-# Follow setup instructions in that folder's README
+chmod +x start_linux.sh
+./start_linux.sh
 ```
 
-See full usage in `youtubeTool/README.md`.
+**Windows:**
+
+```bash
+cd youtubeTool
+start_windows.bat
+```
+
+See full usage and options in [youtubeTool/README.md](youtubeTool/README.md).
 
 ## Adding a New Source Tool
 

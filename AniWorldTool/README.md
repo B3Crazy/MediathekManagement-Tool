@@ -42,35 +42,45 @@ Optional:
 
 ## 5. Installation
 
-From inside this folder:
-
-```bash
-cd AniWorldTool
-pip install aniworld
-pip install rich
-```
-
-If you use virtual environments, activate your environment first.
+Dependencies are managed automatically by the startup scripts.
+No manual installation needed.
 
 ## 6. Quick Start
 
-Start interactive mode:
+**Linux/macOS:**
 
 ```bash
 cd AniWorldTool
-python AniLoad.py
+./start.sh
 ```
 
-Search and auto-run first hit:
+**Windows:**
 
 ```bash
-python AniLoad.py --search "Attack on Titan" --no-interactive
+cd AniWorldTool
+start.bat
 ```
 
-Download a direct URL:
+The startup script will:
+- Create a virtual environment if needed
+- Install all dependencies from `requirements.txt`
+- Launch the interactive mode
+
+### Running with arguments
+
+You can pass arguments to the startup scripts:
 
 ```bash
-python AniLoad.py https://aniworld.to/anime/stream/example-slug
+# Linux/macOS - search and auto-run first hit
+./start.sh --search "Attack on Titan" --no-interactive
+
+# Windows
+start.bat --search "Attack on Titan" --no-interactive
+```
+
+```bash
+# Download a direct URL
+./start.sh https://aniworld.to/anime/stream/example-slug
 ```
 
 ## 7. CLI Reference
@@ -95,19 +105,31 @@ Arguments:
 Batch from file:
 
 ```bash
-python AniLoad.py --url-file urls.txt --action download
+# Linux/macOS
+./start.sh --url-file urls.txt --action download
+
+# Windows
+start.bat --url-file urls.txt --action download
 ```
 
 Watch mode:
 
 ```bash
-python AniLoad.py https://aniworld.to/anime/stream/example-episode --action watch
+# Linux/macOS
+./start.sh https://aniworld.to/anime/stream/example-episode --action watch
+
+# Windows
+start.bat https://aniworld.to/anime/stream/example-episode --action watch
 ```
 
 Syncplay mode:
 
 ```bash
-python AniLoad.py https://aniworld.to/anime/stream/example-episode --action syncplay
+# Linux/macOS
+./start.sh https://aniworld.to/anime/stream/example-episode --action syncplay
+
+# Windows
+start.bat https://aniworld.to/anime/stream/example-episode --action syncplay
 ```
 
 ## 9. Output and Behavior

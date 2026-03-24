@@ -57,22 +57,12 @@ Recommended:
 
 ## 5. Installation
 
-From inside this folder:
-
-```bash
-cd youtubeTool
-pip install -r requirements.txt
-```
-
-Or backend-only:
-
-```bash
-pip install -r backend/requirements.txt
-```
+Dependencies are managed automatically by the startup scripts.
+No manual installation needed.
 
 ## 6. Quick Start
 
-Linux quick start script:
+**Linux:**
 
 ```bash
 cd youtubeTool
@@ -80,28 +70,39 @@ chmod +x start_linux.sh
 ./start_linux.sh
 ```
 
-This script:
-- creates/uses `.venv`
-- installs dependencies
-- checks or installs ffmpeg where possible
-- starts backend on `http://localhost:8000`
-- serves frontend on `http://localhost:8080`
+**Windows:**
 
-Manual start:
+```bash
+cd youtubeTool
+start_windows.bat
+```
+
+The startup script will:
+- create/use `.venv`
+- install all dependencies from `requirements.txt`
+- check or install ffmpeg where possible
+- start backend on `http://localhost:8000`
+- serve frontend on `http://localhost:8080`
+
+Open your browser to `http://localhost:8080` to access the UI.
+
+### Manual start (if not using startup scripts)
+
+Backend only:
 
 ```bash
 cd youtubeTool/backend
 python start_server.py
 ```
 
-In a second terminal:
+In a second terminal, serve the frontend:
 
 ```bash
 cd youtubeTool/frontend
 python -m http.server 8080
 ```
 
-Open `http://localhost:8080`.
+Then open `http://localhost:8080`.
 
 ## 7. API Overview
 

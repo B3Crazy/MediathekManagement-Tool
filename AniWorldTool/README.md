@@ -66,6 +66,8 @@ The startup script will:
 - Install all dependencies from `requirements.txt`
 - Launch the interactive mode
 
+Hint: Use bash for best visual experience
+
 ### Running with arguments
 
 You can pass arguments to the startup scripts:

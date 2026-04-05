@@ -22,10 +22,14 @@ Current top-level layout:
 ```text
 MediathekManagement-Tool/
 ├── README.md
-├── AniWorldTool/
+├── AniLoad/
 │   ├── AniLoad.py
 │   └── README.md
-└── youtubeTool/
+├── primeVideo/
+│   ├── prime.py
+│   ├── requirements.txt
+│   └── README.md
+└── youtube/
 	 ├── backend/
 	 ├── frontend/
 	 ├── requirements.txt
@@ -34,8 +38,8 @@ MediathekManagement-Tool/
 
 ### What each folder means
 
-- `AniWorldTool/`: AniWorld-specific CLI workflow.
-- `youtubeTool/`: YouTube-specific downloader with backend/frontend components.
+- `AniLoad/`: AniWorld-specific CLI workflow.
+- `youtube/`: YouTube-specific downloader with backend/frontend components.
 
 As this collection grows, new source tools should be added as additional sibling folders.
 
@@ -65,7 +69,7 @@ Every source tool folder at repository root must include the following files:
 Every tool must run inside a local virtual environment in that tool's root folder.
 
 - Required location: `<tool-root>/.venv`
-- Example: `MediathekManagement-Tool/AniWorldTool/.venv`
+- Example: `MediathekManagement-Tool/AniLoad/.venv`
 
 The startup scripts must automatically create `.venv` when it does not exist and then install dependencies from `requirements.txt`.
 
@@ -87,25 +91,25 @@ Use the startup scripts inside the source folder you want to run.
 **Linux/macOS:**
 
 ```bash
-cd AniWorldTool
+cd AniLoad
 ./start.sh
 ```
 
 **Windows:**
 
 ```bash
-cd AniWorldTool
+cd AniLoad
 start.bat
 ```
 
-See full usage and options in [AniWorldTool/README.md](AniWorldTool/README.md).
+See full usage and options in [AniLoad/README.md](AniLoad/README.md).
 
 ### Run YouTube tool
 
 **Linux:**
 
 ```bash
-cd youtubeTool
+cd youtube
 chmod +x start_linux.sh
 ./start_linux.sh
 ```
@@ -113,11 +117,30 @@ chmod +x start_linux.sh
 **Windows:**
 
 ```bash
-cd youtubeTool
+cd youtube
 start_windows.bat
 ```
 
-See full usage and options in [youtubeTool/README.md](youtubeTool/README.md).
+See full usage and options in [youtube/README.md](youtube/README.md).
+
+### Run PrimeVideo tool
+
+**Linux/macOS:**
+
+```bash
+cd primeVideo
+chmod +x start.sh
+./start.sh --action tools
+```
+
+**Windows:**
+
+```bash
+cd primeVideo
+start.bat --action tools
+```
+
+See full usage and options in [primeVideo/README.md](primeVideo/README.md).
 
 ## Adding a New Source Tool
 

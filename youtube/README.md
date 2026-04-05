@@ -1,4 +1,4 @@
-# youtubeTool
+# youtube
 
 Source-specific downloader stack for YouTube media, with a FastAPI backend and a static web frontend.
 
@@ -14,7 +14,7 @@ Current implementation:
 ## 2. Folder Layout
 
 ```text
-youtubeTool/
+youtube/
 ├── backend/
 │   ├── api.py
 │   ├── downloader.py
@@ -65,7 +65,7 @@ No manual installation needed.
 **Linux:**
 
 ```bash
-cd youtubeTool
+cd youtube
 chmod +x start_linux.sh
 ./start_linux.sh
 ```
@@ -73,7 +73,7 @@ chmod +x start_linux.sh
 **Windows:**
 
 ```bash
-cd youtubeTool
+cd youtube
 start_windows.bat
 ```
 
@@ -91,14 +91,14 @@ Open your browser to `http://localhost:8080` to access the UI.
 Backend only:
 
 ```bash
-cd youtubeTool/backend
+cd youtube/backend
 python start_server.py
 ```
 
 In a second terminal, serve the frontend:
 
 ```bash
-cd youtubeTool/frontend
+cd youtube/frontend
 python -m http.server 8080
 ```
 

@@ -25,6 +25,10 @@ MediathekManagement-Tool/
 ├── AniWorldTool/
 │   ├── AniLoad.py
 │   └── README.md
+├── primeVideo/
+│   ├── prime.py
+│   ├── requirements.txt
+│   └── README.md
 └── youtubeTool/
 	 ├── backend/
 	 ├── frontend/
@@ -35,6 +39,7 @@ MediathekManagement-Tool/
 ### What each folder means
 
 - `AniWorldTool/`: AniWorld-specific CLI workflow.
+- `primeVideo/`: Prime Video-specific CLI helper.
 - `youtubeTool/`: YouTube-specific downloader with backend/frontend components.
 
 As this collection grows, new source tools should be added as additional sibling folders.
@@ -118,6 +123,25 @@ start_windows.bat
 ```
 
 See full usage and options in [youtubeTool/README.md](youtubeTool/README.md).
+
+### Run PrimeVideo tool
+
+**Linux/macOS:**
+
+```bash
+cd primeVideo
+chmod +x start.sh
+./start.sh --action tools
+```
+
+**Windows:**
+
+```bash
+cd primeVideo
+start.bat --action tools
+```
+
+See full usage and options in [primeVideo/README.md](primeVideo/README.md).
 
 ## Adding a New Source Tool
 

@@ -1,4 +1,4 @@
-# AniWorldTool
+# AniLoad
 
 Source-specific CLI tool for downloading, watching, and sync-playing anime episodes from AniWorld.
 
@@ -15,7 +15,7 @@ Current implementation:
 ## 2. Folder Layout
 
 ```text
-AniWorldTool/
+AniLoad/
 ├── AniLoad.py
 └── README.md
 ```
@@ -50,14 +50,14 @@ No manual installation needed.
 **Linux/macOS:**
 
 ```bash
-cd AniWorldTool
+cd AniLoad
 ./start.sh
 ```
 
 **Windows:**
 
 ```bash
-cd AniWorldTool
+cd AniLoad
 start.bat
 ```
 

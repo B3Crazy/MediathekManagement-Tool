@@ -11,6 +11,7 @@ import logging
 import os
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -1002,6 +1003,29 @@ def _download_with_visual_frontend(
 			raise RuntimeError(f"Some downloads failed (even after retry):\n{failure_preview}")
 
 
+def _play_victory_sound():
+	"""Play victory sound when AniLoad finishes."""
+	sound_path = Path(__file__).parent / "sounds" / "Victory Sound Effect.mp3"
+	if not sound_path.exists():
+		return
+
+	ffplay_bin = shutil.which("ffplay")
+	if ffplay_bin is None:
+		# ffplay may be required to play mp3 reliably across platforms.
+		return
+
+	try:
+		subprocess.run(
+			[ffplay_bin, "-nodisp", "-autoexit", "-loglevel", "quiet", str(sound_path)],
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+			timeout=30,
+		)
+	except Exception:
+		# Silently fail if sound can't be played
+		pass
+
+
 def main() -> int:
 	_print_startup_banner()
 	parser = _build_parser()
@@ -1042,6 +1066,7 @@ def main() -> int:
 			resolve_provider=resolve_provider,
 			extract_menu_languages=extract_menu_languages,
 		)
+		_play_victory_sound()
 		return 0
 
 	for obj in objects:
@@ -1051,6 +1076,7 @@ def main() -> int:
 			with _suppress_download_noise():
 				run_action(obj, action)
 
+	_play_victory_sound()
 	return 0
 
 
